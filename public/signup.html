@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="bs">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Registracija • MailSpark</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-auth-compat.js"></script>
+    <script src="/firebase-config.js"></script>
+    <main class="auth-split">
+      <section class="auth-left auth-light">
+        <div class="auth-left-inner">
+          <a href="/" class="back-link">← Početna</a>
+          <a href="/" class="brand"><img src="/logo.png" alt="MailSpark" /></a>
+          <h1>Kreiraj račun.</h1>
+          <p class="muted">Potrebna su nam osnovna polja da krenemo.</p>
+          <form id="signup-form" class="auth-form light">
+            <label>
+              Ime i prezime
+              <input class="auth-input" type="text" placeholder="Vaše ime" required />
+            </label>
+            <label>
+              E‑mail adresa
+              <input class="auth-input" type="email" placeholder="you@domena.com" required />
+            </label>
+            <label>
+              Lozinka
+              <input class="auth-input" type="password" placeholder="Min. 8 znakova" required minlength="8" />
+            </label>
+            <button class="btn primary full" type="submit">Registruj se</button>
+            <div class="auth-divider">ili</div>
+            <button id="google-btn" class="btn oauth full" type="button">Nastavi s Google‑om</button>
+            <div id="auth-status" class="auth-status" role="status" aria-live="polite"></div>
+          </form>
+          <p class="auth-note dark">Već imaš račun? <a href="/signin">Prijavi se</a></p>
+        </div>
+      </section>
+      <section class="auth-right">
+        <canvas id="auth-grid-up" class="auth-grid"></canvas>
+      </section>
+    </main>
+    <script>
+      if (window.FIREBASE_CONFIG) { firebase.initializeApp(window.FIREBASE_CONFIG); }
+      document.getElementById('signup-form').addEventListener('submit', async function(e){
+        e.preventDefault();
+        try{
+          var email = this.querySelector('input[type="email"]').value;
+          var pass = this.querySelector('input[type="password"]').value;
+          if (!firebase.apps.length) { alert('Firebase nije konfigurisan.'); return; }
+          await firebase.auth().createUserWithEmailAndPassword(email, pass);
+          var s = document.getElementById('auth-status'); s.textContent = 'Račun kreiran. Dobrodošli!'; s.className = 'auth-status success';
+          setTimeout(function(){ window.location.href = '/'; }, 600);
+        }catch(err){ var s = document.getElementById('auth-status'); s.textContent = 'Greška: ' + (err.message||err); s.className = 'auth-status error'; }
+      });
+
+      document.getElementById('google-btn').addEventListener('click', async function(){
+        try{ var provider = new firebase.auth.GoogleAuthProvider(); await firebase.auth().signInWithPopup(provider); window.location.href = '/'; }
+        catch(err){ var s = document.getElementById('auth-status'); s.textContent = 'Greška: ' + (err.message||err); s.className = 'auth-status error'; }
+      });
+      (function(){
+        var canvas = document.getElementById('auth-grid-up'); if(!canvas) return; var ctx = canvas.getContext('2d');
+        function resize(){ var dpr=window.devicePixelRatio||1; var rect=canvas.getBoundingClientRect(); canvas.width=rect.width*dpr; canvas.height=rect.height*dpr; ctx.setTransform(dpr,0,0,dpr,0,0);} resize();
+        window.addEventListener('resize', resize);
+        function draw(){ var w=canvas.clientWidth,h=canvas.clientHeight; ctx.clearRect(0,0,w,h); ctx.strokeStyle='rgba(255,255,255,0.06)'; ctx.lineWidth=1; var grid=36; for(var x=0;x<w;x+=grid){ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(x,h);ctx.stroke();} for(var y=0;y<h;y+=grid){ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(w,y);ctx.stroke();}
+          var t=Date.now()/1000; for(var i=0;i<18;i++){var px=(i*83+t*18)%w; var py=(i*59+t*11)%h; var grad=ctx.createRadialGradient(px,py,0,px,py,8); grad.addColorStop(0,'rgba(236,72,153,0.6)'); grad.addColorStop(1,'rgba(236,72,153,0)'); ctx.fillStyle=grad; ctx.beginPath(); ctx.arc(px,py,8,0,Math.PI*2); ctx.fill();}
+          requestAnimationFrame(draw);
+        }
+        draw();
+      })();
+    </script>
+  </body>
+  </html>
+
+

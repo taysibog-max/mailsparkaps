@@ -1,0 +1,537 @@
+<!DOCTYPE html>
+<html lang="sr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Test Checkout - AutoMailer Demo</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: linear-gradient(135deg, #1a1d29 0%, #2a2d3a 100%);
+      color: #e0e0e0;
+      min-height: 100vh;
+      padding: 20px;
+    }
+
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+
+    header {
+      background: linear-gradient(90deg, #6a11cb 0%, #2575fc 100%);
+      padding: 30px;
+      border-radius: 12px;
+      margin-bottom: 30px;
+      text-align: center;
+    }
+
+    header h1 {
+      font-size: 32px;
+      margin-bottom: 10px;
+    }
+
+    header p {
+      font-size: 16px;
+      opacity: 0.9;
+    }
+
+    .demo-banner {
+      background: #ff9800;
+      color: #000;
+      padding: 15px;
+      border-radius: 8px;
+      margin-bottom: 30px;
+      text-align: center;
+      font-weight: bold;
+    }
+
+    .checkout-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 30px;
+      margin-bottom: 30px;
+    }
+
+    @media (max-width: 768px) {
+      .checkout-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    .card {
+      background: #2a2d3a;
+      border-radius: 12px;
+      padding: 30px;
+      border: 1px solid #333;
+    }
+
+    .card h2 {
+      font-size: 24px;
+      margin-bottom: 20px;
+      color: #fff;
+      border-bottom: 2px solid #6a11cb;
+      padding-bottom: 10px;
+    }
+
+    .form-group {
+      margin-bottom: 20px;
+    }
+
+    .form-group label {
+      display: block;
+      margin-bottom: 8px;
+      font-weight: 500;
+      color: #bbb;
+    }
+
+    .form-group input {
+      width: 100%;
+      padding: 12px;
+      border: 1px solid #444;
+      border-radius: 8px;
+      background: #1a1d29;
+      color: #e0e0e0;
+      font-size: 16px;
+      transition: border-color 0.3s;
+    }
+
+    .form-group input:focus {
+      outline: none;
+      border-color: #6a11cb;
+    }
+
+    .cart-item {
+      background: #1a1d29;
+      padding: 20px;
+      border-radius: 8px;
+      margin-bottom: 15px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border: 1px solid #333;
+    }
+
+    .cart-item-info h3 {
+      font-size: 18px;
+      margin-bottom: 5px;
+      color: #fff;
+    }
+
+    .cart-item-info p {
+      color: #bbb;
+      font-size: 14px;
+    }
+
+    .cart-item-price {
+      font-size: 24px;
+      font-weight: bold;
+      color: #6a11cb;
+    }
+
+    .quantity-control {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-top: 10px;
+    }
+
+    .quantity-control button {
+      background: #6a11cb;
+      color: white;
+      border: none;
+      width: 30px;
+      height: 30px;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 18px;
+    }
+
+    .quantity-control input {
+      width: 60px;
+      text-align: center;
+      padding: 5px;
+    }
+
+    .cart-total {
+      background: linear-gradient(90deg, #6a11cb 0%, #2575fc 100%);
+      padding: 20px;
+      border-radius: 8px;
+      margin-top: 20px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .cart-total h3 {
+      font-size: 20px;
+    }
+
+    .cart-total .total-amount {
+      font-size: 32px;
+      font-weight: bold;
+    }
+
+    .btn {
+      background: linear-gradient(90deg, #2575fc 0%, #6a11cb 100%);
+      color: white;
+      padding: 15px 30px;
+      border: none;
+      border-radius: 8px;
+      font-size: 18px;
+      font-weight: bold;
+      cursor: pointer;
+      width: 100%;
+      margin-top: 20px;
+      transition: transform 0.2s;
+    }
+
+    .btn:hover {
+      transform: translateY(-2px);
+    }
+
+    .btn:active {
+      transform: translateY(0);
+    }
+
+    .tracker-status {
+      background: #1a1d29;
+      padding: 20px;
+      border-radius: 8px;
+      margin-top: 30px;
+      border: 2px solid #6a11cb;
+    }
+
+    .tracker-status h3 {
+      color: #6a11cb;
+      margin-bottom: 15px;
+    }
+
+    .tracker-status .status-item {
+      display: flex;
+      justify-content: space-between;
+      padding: 10px 0;
+      border-bottom: 1px solid #333;
+    }
+
+    .tracker-status .status-item:last-child {
+      border-bottom: none;
+    }
+
+    .status-label {
+      color: #bbb;
+    }
+
+    .status-value {
+      color: #fff;
+      font-weight: bold;
+    }
+
+    .status-value.active {
+      color: #4caf50;
+    }
+
+    .instructions {
+      background: #2a2d3a;
+      padding: 30px;
+      border-radius: 12px;
+      margin-top: 30px;
+      border: 1px solid #333;
+    }
+
+    .instructions h3 {
+      color: #6a11cb;
+      margin-bottom: 15px;
+      font-size: 20px;
+    }
+
+    .instructions ol {
+      margin-left: 20px;
+      line-height: 1.8;
+    }
+
+    .instructions li {
+      margin-bottom: 10px;
+      color: #bbb;
+    }
+
+    .instructions code {
+      background: #1a1d29;
+      padding: 2px 8px;
+      border-radius: 4px;
+      color: #6a11cb;
+      font-family: 'Courier New', monospace;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>🛒 AutoMailer Checkout Demo</h1>
+      <p>Test Automatskog Abandoned Cart Sistema</p>
+    </header>
+
+    <div class="demo-banner">
+      ⚠️ OVO JE TEST STRANICA - Unesi svoj email i napusti stranicu da testiraš abandoned cart email!
+    </div>
+
+    <div class="checkout-grid">
+      <!-- Checkout Form -->
+      <div class="card">
+        <h2>📝 Checkout Informacije</h2>
+        <form id="checkoutForm">
+          <div class="form-group">
+            <label for="email">Email adresa *</label>
+            <input 
+              type="email" 
+              id="email" 
+              name="email" 
+              data-cart-email 
+              placeholder="vas@email.com"
+              required
+            >
+          </div>
+
+          <div class="form-group">
+            <label for="name">Ime i prezime</label>
+            <input 
+              type="text" 
+              id="name" 
+              name="name" 
+              data-cart-name 
+              placeholder="Vaše ime"
+            >
+          </div>
+
+          <div class="form-group">
+            <label for="phone">Telefon</label>
+            <input 
+              type="tel" 
+              id="phone" 
+              name="phone" 
+              data-cart-phone 
+              placeholder="+387 61 234 567"
+            >
+          </div>
+
+          <div class="form-group">
+            <label for="address">Adresa</label>
+            <input 
+              type="text" 
+              id="address" 
+              name="address" 
+              placeholder="Ulica i broj"
+            >
+          </div>
+
+          <div class="form-group">
+            <label for="city">Grad</label>
+            <input 
+              type="text" 
+              id="city" 
+              name="city" 
+              placeholder="Sarajevo"
+            >
+          </div>
+
+          <button type="submit" class="btn">
+            Završi kupovinu 🚀
+          </button>
+        </form>
+      </div>
+
+      <!-- Cart Items -->
+      <div class="card">
+        <h2>🛍️ Vaša Korpa</h2>
+        
+        <div class="cart-item" data-cart-item>
+          <div class="cart-item-info">
+            <h3 data-cart-item-name>Premium Slušalice XM-5</h3>
+            <p>Bežične, noise-cancelling, 30h battery</p>
+            <div class="quantity-control">
+              <button type="button" onclick="updateQuantity(0, -1)">-</button>
+              <input type="number" data-cart-item-quantity value="1" min="1" readonly>
+              <button type="button" onclick="updateQuantity(0, 1)">+</button>
+            </div>
+          </div>
+          <div class="cart-item-price">
+            <span data-cart-item-price>299.99</span> KM
+          </div>
+        </div>
+
+        <div class="cart-item" data-cart-item>
+          <div class="cart-item-info">
+            <h3 data-cart-item-name>Pametni Sat SportWatch Pro</h3>
+            <p>GPS, heart rate monitor, waterproof</p>
+            <div class="quantity-control">
+              <button type="button" onclick="updateQuantity(1, -1)">-</button>
+              <input type="number" data-cart-item-quantity value="1" min="1" readonly>
+              <button type="button" onclick="updateQuantity(1, 1)">+</button>
+            </div>
+          </div>
+          <div class="cart-item-price">
+            <span data-cart-item-price>599.99</span> KM
+          </div>
+        </div>
+
+        <div class="cart-item" data-cart-item>
+          <div class="cart-item-info">
+            <h3 data-cart-item-name>Gaming Miš RGB Pro</h3>
+            <p>16000 DPI, RGB lighting, programmable buttons</p>
+            <div class="quantity-control">
+              <button type="button" onclick="updateQuantity(2, -1)">-</button>
+              <input type="number" data-cart-item-quantity value="2" min="1" readonly>
+              <button type="button" onclick="updateQuantity(2, 1)">+</button>
+            </div>
+          </div>
+          <div class="cart-item-price">
+            <span data-cart-item-price>149.99</span> KM
+          </div>
+        </div>
+
+        <div class="cart-total">
+          <h3>Ukupno:</h3>
+          <div class="total-amount" id="totalAmount">1,199.96 KM</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Tracker Status -->
+    <div class="tracker-status">
+      <h3>📊 Tracker Status (Debug)</h3>
+      <div class="status-item">
+        <span class="status-label">Cart ID:</span>
+        <span class="status-value" id="statusCartId">-</span>
+      </div>
+      <div class="status-item">
+        <span class="status-label">Email Detected:</span>
+        <span class="status-value" id="statusEmail">-</span>
+      </div>
+      <div class="status-item">
+        <span class="status-label">Items Count:</span>
+        <span class="status-value" id="statusItems">0</span>
+      </div>
+      <div class="status-item">
+        <span class="status-label">Tracking Active:</span>
+        <span class="status-value active" id="statusTracking">✓ Active</span>
+      </div>
+      <div class="status-item">
+        <span class="status-label">Last Update:</span>
+        <span class="status-value" id="statusLastUpdate">-</span>
+      </div>
+    </div>
+
+    <!-- Instructions -->
+    <div class="instructions">
+      <h3>📖 Kako Testirati:</h3>
+      <ol>
+        <li>Unesi <strong>svoj email</strong> u checkout formu (mora biti validan email)</li>
+        <li>Opcionalno: Dodaj ime i telefon</li>
+        <li><strong>Napusti stranicu</strong> (zatvori tab ili idi na drugu stranicu)</li>
+        <li>Sistem će automatski detektovati napuštenu korpu</li>
+        <li>Provjerite svoj email inbox za abandoned cart email! 📧</li>
+        <li>Email dolazi sa AI-generisanim sadržajem preko Brevo API-ja</li>
+      </ol>
+
+      <h3 style="margin-top: 30px;">🔧 Tehnički Detalji:</h3>
+      <ul style="list-style: none; margin-left: 0;">
+        <li>✅ JavaScript tracking automatski aktiviran</li>
+        <li>✅ Real-time detekcija email unosa</li>
+        <li>✅ Heartbeat svakih 30 sekundi</li>
+        <li>✅ SendBeacon API za pouzdanu isporuku</li>
+        <li>✅ localStorage persistence</li>
+        <li>✅ Auto-sync sa backend-om</li>
+      </ul>
+    </div>
+  </div>
+
+  <!-- Load Cart Tracker -->
+  <script src="/cart-tracker.js"></script>
+  <script>
+    // Initialize Cart Tracker
+    CartTracker.init({
+      apiUrl: 'http://localhost:3000/api/cart-tracking',
+      trackingId: 'demo-test-001',
+      debugMode: true, // Enable console logs
+    });
+
+    // Update total price
+    function updateTotal() {
+      const items = document.querySelectorAll('[data-cart-item]');
+      let total = 0;
+      
+      items.forEach(item => {
+        const price = parseFloat(item.querySelector('[data-cart-item-price]').textContent);
+        const quantity = parseInt(item.querySelector('[data-cart-item-quantity]').value);
+        total += price * quantity;
+      });
+
+      document.getElementById('totalAmount').textContent = total.toFixed(2) + ' KM';
+      updateTrackerStatus();
+    }
+
+    // Update quantity
+    function updateQuantity(index, delta) {
+      const items = document.querySelectorAll('[data-cart-item]');
+      const quantityInput = items[index].querySelector('[data-cart-item-quantity]');
+      let newValue = parseInt(quantityInput.value) + delta;
+      
+      if (newValue < 1) newValue = 1;
+      quantityInput.value = newValue;
+      
+      updateTotal();
+      CartTracker.captureCartData();
+      CartTracker.sendToBackend();
+    }
+
+    // Update tracker status display
+    function updateTrackerStatus() {
+      document.getElementById('statusCartId').textContent = CartTracker.state.cartId || '-';
+      document.getElementById('statusEmail').textContent = CartTracker.state.userEmail || '-';
+      document.getElementById('statusItems').textContent = CartTracker.state.cartItems.length || '0';
+      
+      if (CartTracker.state.lastUpdate) {
+        const lastUpdate = new Date(CartTracker.state.lastUpdate);
+        document.getElementById('statusLastUpdate').textContent = lastUpdate.toLocaleTimeString('sr-RS');
+      }
+    }
+
+    // Form submission
+    document.getElementById('checkoutForm').addEventListener('submit', (e) => {
+      e.preventDefault();
+      
+      // Simulate successful purchase
+      alert('✅ Kupovina uspješna! Korpa će biti očišćena.');
+      CartTracker.clearCart();
+      
+      // Redirect to success page (in real app)
+      // window.location.href = '/success';
+    });
+
+    // Update status every second
+    setInterval(updateTrackerStatus, 1000);
+
+    // Initial update
+    updateTotal();
+    updateTrackerStatus();
+
+    // Test: Log when email is entered
+    document.getElementById('email').addEventListener('input', (e) => {
+      console.log('📧 Email typed:', e.target.value);
+    });
+  </script>
+</body>
+</html>
+
+
+
+
+
+
+

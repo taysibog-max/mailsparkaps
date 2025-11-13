@@ -1,0 +1,12 @@
+{
+  "users": {
+    "mahmutbegoviic.amin@gmail.com": {
+      "email": "mahmutbegoviic.amin@gmail.com",
+      "password": "Alminalko1",
+      "plan": "Business",
+      "sentMonthly": 0,
+      "history": []
+    }
+  },
+  "period": "2025-10"
+}

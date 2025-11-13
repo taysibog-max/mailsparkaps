@@ -1,0 +1,16 @@
+node_modules/
+**/node_modules/
+.next/
+**/.next/
+dist/
+build/
+out/
+.cache/
+.turbo/
+.vercel/
+dashboard/.vercel/
+dashboard/.env.local
+.env
+.env.*
+**/.env*
+dashboard/secrets/

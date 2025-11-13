@@ -1,0 +1,23 @@
+{
+  "crons": [
+    {
+      "path": "/api/cron/check-abandoned-carts",
+      "schedule": "*/1 * * * *"
+    }
+  ]
+}
+{
+  "crons": [
+    {
+      "path": "/api/cron/check-abandoned-carts",
+      "schedule": "*/15 * * * *"
+    }
+  ]
+}
+
+
+
+
+
+
+

@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="bs">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>User settings • Automailer</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <header class="site-header">
+      <div class="container header-inner">
+        <a class="logo" href="/">Automailer</a>
+        <nav class="nav">
+          <a href="/dashboard">Dashboard</a>
+          <a href="/settings">User settings</a>
+        </nav>
+        <div class="header-actions">
+          <button id="logout-btn" class="btn ghost">Logout</button>
+        </div>
+      </div>
+    </header>
+    <main class="container">
+      <h2>User settings</h2>
+      <p id="user-email" class="price-sub">Učitavanje…</p>
+      <div class="card" style="max-width:560px">
+        <form id="displayname-form" class="auth-form">
+          <label>Display name<input id="displayname" type="text" placeholder="Vaše ime" /></label>
+          <button class="btn primary" type="submit">Spremi</button>
+        </form>
+        <div id="status" class="auth-status" role="status" aria-live="polite"></div>
+      </div>
+    </main>
+    <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-auth-compat.js"></script>
+    <script src="/firebase-config.js"></script>
+    <script>
+      if (window.FIREBASE_CONFIG) { firebase.initializeApp(window.FIREBASE_CONFIG); }
+      firebase.auth().onAuthStateChanged(function(user){
+        if(!user){ window.location.href = '/signin?m=please-login'; return; }
+        document.getElementById('user-email').textContent = 'Email: ' + (user.email||'');
+        document.getElementById('displayname').value = user.displayName || '';
+      });
+      document.getElementById('displayname-form').addEventListener('submit', async function(e){
+        e.preventDefault();
+        try{
+          var user = firebase.auth().currentUser; if(!user) return;
+          await user.updateProfile({ displayName: document.getElementById('displayname').value });
+          var s = document.getElementById('status'); s.textContent = 'Promjene spremljene.'; s.className = 'auth-status success';
+        }catch(err){ var s = document.getElementById('status'); s.textContent = 'Greška: ' + (err.message||err); s.className = 'auth-status error'; }
+      });
+      document.getElementById('logout-btn').addEventListener('click', async function(){ await firebase.auth().signOut(); window.location.href = '/signin?m=logged-out'; });
+    </script>
+  </body>
+  </html>
+
+
