@@ -41,6 +41,18 @@ export default async function handler(req, res) {
 
     console.log('[Automation] Processing event:', eventType, 'for user:', resolvedUserId);
 
+    // Hard guard: Abandoned cart emails smiju ići samo ako je eksplicitno označeno kao napušteno
+    if (eventType === 'cart_abandoned') {
+      const abandonedFlag = eventData?.isAbandoned === true;
+      if (!abandonedFlag) {
+        console.log('[Automation] Skip: cart_abandoned not marked as abandoned yet (isAbandoned=false)');
+        return res.status(200).json({
+          success: true,
+          message: 'Skipped: not abandoned yet',
+        });
+      }
+    }
+
     // Get corresponding campaign type
     const campaignType = EVENT_TO_CAMPAIGN_MAP[eventType];
     if (!campaignType) {
