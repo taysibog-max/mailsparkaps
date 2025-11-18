@@ -541,14 +541,19 @@ function ShopifyCard(){
     // Bake absolute API URL into the pixel code (must not rely on Shopify domain)
     const base = (typeof window !== 'undefined' ? window.location.origin : '');
     const endpoint = `${base}/api/pixel`;
-    return `// MailSpark Pixel
+    return \`// MailSpark Pixel
 const TRACK_URL='${endpoint}';
 const JWT='${token}';
+const LAST={token:null,email:null};
 function post(type,payload){try{fetch(TRACK_URL,{method:'POST',keepalive:true,headers:{'Content-Type':'application/json','Authorization':'Bearer '+JWT},body:JSON.stringify({type,...payload})});}catch(e){}}
-analytics.subscribe('checkout_contact_information_submitted',(event)=>{const ch=event?.data?.checkout||{};post('contact_info',{checkoutToken:ch?.token||ch?.id||null,email:ch?.email||ch?.contactEmail||null,currency:ch?.currencyCode,lineItems:(ch?.lineItems||[]).map(i=>({id:i?.product?.id,variantId:i?.variant?.id,title:i?.title,quantity:i?.quantity,price:i?.price?.amount}))});});
+analytics.subscribe('checkout_contact_information_submitted',(event)=>{const ch=event?.data?.checkout||{};const em=ch?.email||ch?.contactEmail||null;const t=ch?.token||ch?.id||null;LAST.token=t||LAST.token;LAST.email=em||LAST.email;post('contact_info',{checkoutToken:t,email:em,currency:ch?.currencyCode,lineItems:(ch?.lineItems||[]).map(i=>({id:i?.product?.id,variantId:i?.variant?.id,title:i?.title,quantity:i?.quantity,price:i?.price?.amount}))});});
 // Fallback: ponekad email dobijemo tek na shipping koraku
-analytics.subscribe('checkout_shipping_info_submitted',(event)=>{const ch=event?.data?.checkout||{};if(ch?.email||ch?.contactEmail){post('contact_info',{checkoutToken:ch?.token||ch?.id||null,email:ch?.email||ch?.contactEmail||null});}});
-analytics.subscribe('checkout_completed',(event)=>{const ch=event?.data?.checkout||{};post('completed',{checkoutToken:ch?.token||ch?.id||null,orderId:event?.data?.order?.id||null});});`;
+analytics.subscribe('checkout_shipping_info_submitted',(event)=>{const ch=event?.data?.checkout||{};const em=ch?.email||ch?.contactEmail||null;const t=ch?.token||ch?.id||null;if(em){LAST.token=t||LAST.token;LAST.email=em||LAST.email;post('contact_info',{checkoutToken:t,email:em});}});
+analytics.subscribe('checkout_completed',(event)=>{const ch=event?.data?.checkout||{};post('completed',{checkoutToken:ch?.token||ch?.id||null,orderId:event?.data?.order?.id||null});});
+// Označi kao napušteno TEK kada korisnik napusti checkout
+const sendAbandoned=()=>{if(LAST.email||LAST.token){post('abandoned',{checkoutToken:LAST.token||null,email:LAST.email||null});}};
+window.addEventListener('pagehide',sendAbandoned);
+window.addEventListener('beforeunload',sendAbandoned);\`;
   }
 
   async function selectMode(mode){

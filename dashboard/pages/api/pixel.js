@@ -74,12 +74,28 @@ export default async function handler(req, res) {
         topic: 'contact_info',
         createdAt: Date.now(),
         lastAt: Date.now(),
+        isAbandoned: false,
         processedAt: null,
         emailSent: false,
         recovered: false,
         platform: 'shopify',
       };
       await baseRef.update(payload);
+      return res.status(200).json({ success: true });
+    }
+
+    if (type === 'abandoned') {
+      // Mark explicitly as abandoned (triggered on page leave)
+      const updates = {
+        isAbandoned: true,
+        abandonedAt: Date.now(),
+        lastAt: Date.now(),
+      };
+      // If email is provided here and not yet stored, persist it
+      if (email) {
+        updates['customerEmail'] = email;
+      }
+      await baseRef.update(updates);
       return res.status(200).json({ success: true });
     }
 

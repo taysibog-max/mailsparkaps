@@ -9,8 +9,8 @@
 
 import { adminDatabase } from '../../../lib/firebaseAdmin';
 
-// Lowered threshold for fast testing (1 minute)
-const CART_ABANDONED_THRESHOLD = 60 * 1000; // 1 minute
+// Process only after explicit abandonment signal (page leave) and a small delay
+const CART_ABANDONED_THRESHOLD = 30 * 1000; // 30 seconds safety delay
 
 export default async function handler(req, res) {
   // Allow GET for manual trigger, but verify cron secret for security
@@ -60,12 +60,14 @@ export default async function handler(req, res) {
             skippedCount++;
             continue;
           }
-          // Za obradu je dovoljan email (source može biti 'pixel' ili 'shopify')
+          // Za obradu je potreban eksplicitni signal napuštanja (FAST pixel šalje 'abandoned' kad korisnik napusti checkout)
+          if (event?.isAbandoned !== true) { skippedCount++; continue; }
+          // Potreban email i barem jedna stavka
           if (!event?.customerEmail) { skippedCount++; continue; }
           if (!Array.isArray(event?.items) || event.items.length === 0) { skippedCount++; continue; }
-          // Old enough
-          const cartAge = now - Number(event?.createdAt || 0);
-          if (cartAge < CART_ABANDONED_THRESHOLD) { skippedCount++; continue; }
+          // Dovoljna starost od trenutka napuštanja
+          const age = now - Number(event?.abandonedAt || event?.lastAt || 0);
+          if (age < CART_ABANDONED_THRESHOLD) { skippedCount++; continue; }
 
           valid.push({ eventId, ...event });
         }
