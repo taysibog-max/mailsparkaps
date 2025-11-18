@@ -190,6 +190,8 @@ export default async function handler(req, res) {
         platform: 'shopify',
         shopDomain,
         source: 'shopify',
+        // Za FAST režim: ne šalji odmah; čekaj eksplicitni 'abandoned' signal sa pixela
+        isAbandoned: false,
       };
     } else if (topic === 'orders/create') {
       eventType = 'order_created';
@@ -248,10 +250,9 @@ export default async function handler(req, res) {
     }
 
     // Trigger automation:
-    // - For cart_abandoned: trigger immediately ONLY if imamo customerEmail (real‑time iskustvo)
+    // - For cart_abandoned: NE šalji odmah (čekamo 'abandoned' signal sa pixela i CRON)
     // - For ostale evente: uvijek odmah
-    const hasEmail = !!eventData?.customerEmail;
-    const shouldTriggerImmediately = eventType !== 'cart_abandoned' ? true : hasEmail;
+    const shouldTriggerImmediately = eventType !== 'cart_abandoned';
     if (shouldTriggerImmediately) {
       triggerAutomation(userId, eventId, eventType, eventData).catch(err => {
         console.error('[Shopify Webhook] Automation trigger error:', err);
