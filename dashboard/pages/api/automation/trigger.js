@@ -23,6 +23,9 @@ const EVENT_TO_CAMPAIGN_MAP = {
   customer_created: 'welcome_email',
 };
 
+// Grace window for abandoned carts (ms)
+const ABANDONED_GRACE_MS = 90 * 1000;
+
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
@@ -41,15 +44,34 @@ export default async function handler(req, res) {
 
     console.log('[Automation] Processing event:', eventType, 'for user:', resolvedUserId);
 
-    // Hard guard: Abandoned cart emails smiju ići samo ako je eksplicitno označeno kao napušteno
+    // Hard guard + grace window for cart_abandoned
     if (eventType === 'cart_abandoned') {
-      const abandonedFlag = eventData?.isAbandoned === true;
-      if (!abandonedFlag) {
-        console.log('[Automation] Skip: cart_abandoned not marked as abandoned yet (isAbandoned=false)');
-        return res.status(200).json({
-          success: true,
-          message: 'Skipped: not abandoned yet',
-        });
+      try {
+        const ref = adminDatabase.ref(`events/${resolvedUserId}/cart_abandoned/${eventId}`);
+        const snap = await ref.once('value');
+        const ev = snap.exists() ? snap.val() : {};
+        const now = Date.now();
+        const lastTs = Number(ev?.abandonedAt || ev?.lastAt || ev?.createdAt || 0);
+        const ageMs = now - lastTs;
+        const isMarked = ev?.isAbandoned === true || eventData?.isAbandoned === true;
+        const recovered = ev?.recovered === true;
+        const hasEmail = Boolean(ev?.customerEmail || eventData?.customerEmail);
+        const eligible = hasEmail && !recovered && (isMarked || ageMs >= ABANDONED_GRACE_MS);
+        if (!eligible) {
+          console.log('[Automation] Skip cart_abandoned: eligible=false', {
+            recovered, hasEmail, isMarked, ageMs,
+          });
+          return res.status(200).json({ success: true, message: 'Skipped by grace/recovery rules' });
+        }
+        // Prefer stored email and enrich eventData
+        eventData = {
+          ...eventData,
+          ...ev,
+          customerEmail: ev?.customerEmail || eventData?.customerEmail,
+          isAbandoned: true,
+        };
+      } catch (e) {
+        console.warn('[Automation] cart_abandoned eligibility check failed:', e?.message || e);
       }
     }
 

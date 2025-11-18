@@ -249,10 +249,8 @@ export default async function handler(req, res) {
       });
     }
 
-    // Trigger automation:
-    // - For cart_abandoned: NE šalji odmah (čekamo 'abandoned' signal sa pixela i CRON)
-    // - For ostale evente: uvijek odmah
-    const shouldTriggerImmediately = eventType !== 'cart_abandoned';
+    // Trigger automation odmah; zaštite (grace/recovered) su u automation/trigger
+    const shouldTriggerImmediately = true;
     if (shouldTriggerImmediately) {
       triggerAutomation(userId, eventId, eventType, eventData).catch(err => {
         console.error('[Shopify Webhook] Automation trigger error:', err);
