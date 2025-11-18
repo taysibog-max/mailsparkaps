@@ -106,9 +106,15 @@ export default async function handler(req, res) {
             process.env.NEXT_PUBLIC_APP_URL ||
             (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : '');
           if (baseUrl) {
+            const headers = { 'Content-Type': 'application/json' };
+            const bypass =
+              process.env.VERCEL_PROTECTION_BYPASS ||
+              process.env.PROTECTION_BYPASS_TOKEN ||
+              process.env.VERCEL_BYPASS_TOKEN;
+            if (bypass) headers['x-vercel-protection-bypass'] = bypass;
             await fetch(`${baseUrl}/api/automation/trigger`, {
               method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
+              headers,
               body: JSON.stringify({
                 userId,
                 eventId,
