@@ -550,10 +550,13 @@ analytics.subscribe('checkout_contact_information_submitted',(event)=>{const ch=
 // Fallback: ponekad email dobijemo tek na shipping koraku
 analytics.subscribe('checkout_shipping_info_submitted',(event)=>{const ch=event?.data?.checkout||{};const em=ch?.email||ch?.contactEmail||null;const t=ch?.token||ch?.id||null;if(em){LAST.token=t||LAST.token;LAST.email=em||LAST.email;post('contact_info',{checkoutToken:t,email:em});}});
 analytics.subscribe('checkout_completed',(event)=>{const ch=event?.data?.checkout||{};post('completed',{checkoutToken:ch?.token||ch?.id||null,orderId:event?.data?.order?.id||null});});
-// Označi kao napušteno TEK kada korisnik napusti checkout
+// Označi kao napušteno SAMO kada korisnik napušta stranicu (unload)
 const sendAbandoned=()=>{if(LAST.email||LAST.token){post('abandoned',{checkoutToken:LAST.token||null,email:LAST.email||null});}};
-window.addEventListener('pagehide',sendAbandoned);
-window.addEventListener('beforeunload',sendAbandoned);\`;
+// 1) Prava navigacija/close prozora
+window.addEventListener('beforeunload',sendAbandoned);
+// 2) Ako samo pređe u drugi tab, čekaj da tab bude skriven bar 60s pa tek onda šalji
+let hiddenTimer=null;
+document.addEventListener('visibilitychange',()=>{try{if(document.hidden){hiddenTimer=setTimeout(()=>{if(document.hidden){sendAbandoned();}},60000);}else{if(hiddenTimer){clearTimeout(hiddenTimer);hiddenTimer=null;}}}catch(_){}});\`;
   }
 
   async function selectMode(mode){
