@@ -73,6 +73,23 @@ export default async function handler(req, res) {
       });
     }
 
+    // Re-read current event to ensure not recovered/processed in the meantime (race guard)
+    try {
+      const liveRef = adminDatabase.ref(`events/${resolvedUserId}/${eventType}/${eventId}`);
+      const liveSnap = await liveRef.once('value');
+      if (liveSnap.exists()) {
+        const live = liveSnap.val() || {};
+        if (live.emailSent || live.processedAt) {
+          console.log('[Automation] Skip: already processed by another worker');
+          return res.status(200).json({ success: true, message: 'Already processed' });
+        }
+        if (eventType === 'cart_abandoned' && live.recovered === true) {
+          console.log('[Automation] Skip: checkout recovered, not sending abandoned email');
+          return res.status(200).json({ success: true, message: 'Recovered – skip sending' });
+        }
+      }
+    } catch (_) {}
+
     // Get active campaign for this type
     let campaign = await getActiveCampaign(adminDatabase, resolvedUserId, campaignType);
     if (!campaign) {
