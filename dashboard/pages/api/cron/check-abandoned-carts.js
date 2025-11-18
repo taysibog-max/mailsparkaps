@@ -10,7 +10,7 @@
 import { adminDatabase } from '../../../lib/firebaseAdmin';
 
 // Process only after explicit abandonment signal (page leave) and a small delay
-const CART_ABANDONED_THRESHOLD = 30 * 1000; // 30 seconds safety delay
+const CART_ABANDONED_THRESHOLD = 10 * 1000; // 10 seconds for faster feedback
 
 export default async function handler(req, res) {
   // Allow GET for manual trigger, but verify cron secret for security
