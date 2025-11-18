@@ -554,6 +554,9 @@ analytics.subscribe('checkout_completed',(event)=>{const ch=event?.data?.checkou
 const sendAbandoned=()=>{try{if(!(LAST.email||LAST.token))return;const payload=JSON.stringify({type:'abandoned',checkoutToken:LAST.token||null,email:LAST.email||null});if(navigator.sendBeacon){try{const blob=new Blob([payload],{type:'application/json'});navigator.sendBeacon(TRACK_URL,blob);}catch(_){}}else{post('abandoned',{checkoutToken:LAST.token||null,email:LAST.email||null});}}catch(_){}}; 
 // Pravo napuštanje/close + navigacija (Safari/SPA)
 window.addEventListener('beforeunload',sendAbandoned);
+// Ako korisnik ode u drugi tab i ostane skriven ≥10s, tretiraj kao napušteno
+let __HIDDEN_TIMER=null;
+document.addEventListener('visibilitychange',()=>{try{if(document.hidden){__HIDDEN_TIMER=setTimeout(()=>{if(document.hidden)sendAbandoned();},10000);}else if(__HIDDEN_TIMER){clearTimeout(__HIDDEN_TIMER);__HIDDEN_TIMER=null;}}catch(_){}})
 window.addEventListener('pagehide',sendAbandoned);`;
   }
 
