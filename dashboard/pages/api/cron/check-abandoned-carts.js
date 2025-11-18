@@ -62,9 +62,9 @@ export default async function handler(req, res) {
           }
           // Za obradu je potreban eksplicitni signal napuštanja (FAST pixel šalje 'abandoned' kad korisnik napusti checkout)
           if (event?.isAbandoned !== true) { skippedCount++; continue; }
-          // Potreban email i barem jedna stavka
+          // Potreban je e‑mail; stavke su opcione (neke teme/pixeli ne šalju lineItems)
           if (!event?.customerEmail) { skippedCount++; continue; }
-          if (!Array.isArray(event?.items) || event.items.length === 0) { skippedCount++; continue; }
+          // Items optional: if missing, we'll still proceed
           // Dovoljna starost od trenutka napuštanja
           const age = now - Number(event?.abandonedAt || event?.lastAt || 0);
           if (age < CART_ABANDONED_THRESHOLD) { skippedCount++; continue; }
