@@ -23,16 +23,34 @@ export default async function handler(req, res) {
     console.log('[Campaign Update] Updating campaign status:', campaignId, '→', status);
 
     const campaignRef = adminDatabase.ref(`users/${uid}/campaigns/${campaignId}`);
-    
-    const snapshot = await campaignRef.once('value');
-    if (!snapshot.exists()) {
+    const draftRef = adminDatabase.ref(`users/${uid}/campaigns_drafts/${campaignId}`);
+
+    const [snapActive, snapDraft] = await Promise.all([
+      campaignRef.once('value'),
+      draftRef.once('value').catch(() => null),
+    ]);
+
+    // Case A: lives under active campaigns
+    if (snapActive && snapActive.exists()) {
+      await campaignRef.update({
+        status,
+        updatedAt: Date.now(),
+      });
+    } else if (snapDraft && snapDraft.exists()) {
+      // Case B: lives under drafts
+      const data = snapDraft.val() || {};
+      if (status === 'active') {
+        // Move from drafts → campaigns and set status
+        const moved = { ...data, status: 'active', updatedAt: Date.now() };
+        await campaignRef.set(moved);
+        await draftRef.remove();
+      } else {
+        // Stay in drafts but update status metadata (rare)
+        await draftRef.update({ status, updatedAt: Date.now() });
+      }
+    } else {
       return res.status(404).json({ error: 'Campaign not found' });
     }
-
-    await campaignRef.update({
-      status,
-      updatedAt: Date.now(),
-    });
 
     console.log('[Campaign Update] ✅ Status updated successfully');
 

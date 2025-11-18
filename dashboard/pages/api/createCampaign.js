@@ -20,7 +20,7 @@ export default async function handler(req, res) {
     }
 
     // Validate request body
-    const { name, subject, sender, htmlContent, recipients, type, status } = req.body;
+    const { name, subject, sender, htmlContent, recipients, type, status, metadata } = req.body;
 
     if (!name || !subject || !sender?.name || !sender?.email || !htmlContent) {
       return res.status(400).json({ 
@@ -34,6 +34,16 @@ export default async function handler(req, res) {
       return res.status(500).json({ error: 'Brevo API key not configured' });
     }
 
+    // Normalize our campaign "automation" type (for RTDB), Brevo stays 'classic'
+    const normalizeType = (t) => String(t || '')
+      .toLowerCase()
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .replace(/[\s-]+/g, '_')
+      .trim();
+    const requestedCampaignType = metadata?.campaignType || type; // UI sends metadata.campaignType
+    const normalizedAutomationType = normalizeType(requestedCampaignType || 'abandoned_cart');
+
     // Prepare payload for Brevo API
     const payload = {
       name,
@@ -43,7 +53,8 @@ export default async function handler(req, res) {
         email: sender.email,
       },
       htmlContent,
-      type: type || 'classic',
+      // Brevo expects 'classic' or 'template', keep it stable regardless of our automation type
+      type: 'classic',
     };
 
     // Only add recipients if provided (not required for drafts)
@@ -95,12 +106,16 @@ export default async function handler(req, res) {
           name: sender.name,
           email: sender.email,
         },
-        type: type || 'classic',
+        // Store our automation type normalized so CRON/automation can match immediately
+        type: normalizedAutomationType,
         status: status || 'draft',
         createdAt: Date.now(),
         updatedAt: Date.now(),
         brevoId: responseData.id,
-        metadata: req.body.metadata || {},
+        metadata: {
+          ...(metadata || {}),
+          campaignType: normalizedAutomationType,
+        },
         // Persist template so automation can use the exact dashboard content
         htmlContent: req.body.htmlContent || '',
         templateId: req.body.templateId || null,

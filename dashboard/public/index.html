@@ -1,0 +1,474 @@
+<!DOCTYPE html>
+<html lang="bs">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>MailSpark</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&family=Sora:wght@600;700;800&display=swap" rel="stylesheet" />
+    <link rel="icon" type="image/png" href="/logo-mark.png" />
+    <link rel="shortcut icon" type="image/png" href="/logo-mark.png" />
+    <link rel="apple-touch-icon" href="/logo-mark.png" />
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <header class="site-header">
+      <div class="container header-inner">
+        <a class="logo" href="/"><img src="/logo.png" alt="MailSpark" /></a>
+        <nav class="nav" id="primary-nav" aria-label="Primary">
+          <a href="#features">Features</a>
+          <a href="#pricing">Pricing</a>
+          <a href="#faq">FAQ</a>
+          <a href="#results">Results</a>
+        </nav>
+        <div class="header-actions">
+          <button id="signin-btn" class="btn subtle signin" type="button">Sign in</button>
+          <a class="btn shine signup" href="/signup">Sign up</a>
+          <div id="user-menu-mount"></div>
+        </div>
+        <button class="menu-toggle" aria-label="Otvori meni" aria-controls="primary-nav" aria-expanded="false">
+          <span class="bar"></span>
+          <span class="bar"></span>
+          <span class="bar"></span>
+        </button>
+      </div>
+    </header>
+    <main>
+      <section class="hero">
+        <canvas id="hero-particles" class="particles"></canvas>
+        <div class="container hero-inner">
+          <div class="hero-copy">
+            <p class="badge">New • effortless email sending</p>
+            <h1>
+              Bring back<br />
+              lost sales<br />
+              <span class="gradient-text">automatically</span>
+            </h1>
+            <p class="subtext">MailSpark is a lightweight, powerful way to send transactional and marketing emails through your own SMTP.</p>
+            <div class="hero-ctas">
+              <a class="btn primary" href="#pricing">View pricing</a>
+              <a class="btn ghost" href="/signup">Get started</a>
+            </div>
+          </div>
+          <div class="hero-art">
+            <div class="glow"></div>
+            <div class="hero-right">
+            <div class="msg-box" aria-live="polite">
+              <div class="msg-row">
+                <div class="avatar">A</div>
+                <div class="msg">
+                  <div class="msg-title">Upsell reminder</div>
+                  <div class="msg-text">Hey Sara, you left items in your cart — here’s 10% off.</div>
+                </div>
+              </div>
+              <div class="msg-row">
+                <div class="avatar">M</div>
+                <div class="msg">
+                  <div class="msg-title">Cross‑sell</div>
+                  <div class="msg-text">Customers who bought sneakers often add socks.</div>
+                </div>
+              </div>
+              <div class="msg-row">
+                <div class="avatar">J</div>
+                <div class="msg">
+                  <div class="msg-title">Winback</div>
+                  <div class="msg-text">We haven’t seen you in a while — enjoy 15% off to come back.</div>
+                </div>
+              </div>
+              </div>
+              <div class="chip-wrap">
+                <div class="ai-chip" role="status" aria-live="polite">
+                  <!-- Sparkle icon -->
+                  <svg class="chip-icon icon-sparkle" width="16" height="16" viewBox="0 0 24 24" aria-hidden="true">
+                    <path fill="currentColor" d="M12 2l1.8 4.2L18 8l-4.2 1.8L12 14l-1.8-4.2L6 8l4.2-1.8L12 2zm-6 10l.9 2.1L9 15l-2.1.9L6 18l-.9-2.1L3 15l2.1-.9L6 12zm12 0l1.1 2.6L22 16l-2.9 1.4L18 20l-1.1-2.6L14 16l2.9-1.4L18 12z"/>
+                  </svg>
+                  <span class="chip-text" id="ai-chip-text"></span>
+                  <!-- Second sparkle icon for symmetry -->
+                  <svg class="chip-icon icon-sparkle2" width="16" height="16" viewBox="0 0 24 24" aria-hidden="true">
+                    <path fill="currentColor" d="M12 2l-1.6 4.3L6 8l4.4 1.7L12 14l1.6-4.3L18 8l-4.4-1.7L12 2zM5 12l-.8 2L6 15l-1.8.8L3 18l-.8-2.2L0 15l2.2-1l.8-2Zm14 0l.9 2.3L22 15l-2.1 1l-1 2.3l-.9-2.3L15 15l2.1-.7L19 12Z"/>
+                  </svg>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section id="how" class="section container reveal">
+        <h2>How it works</h2>
+        <div class="how-grid">
+          <article class="card how-step">
+            <div class="how-icon" aria-hidden="true">
+              <svg width="28" height="28" viewBox="0 0 24 24"><path fill="currentColor" d="M20 6H8l-2-2H4a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2Zm0 12H4V6h1.586L8.586 9H20Z"/></svg>
+            </div>
+            <h3>Sign up & connect</h3>
+            <p>Create an account and connect your platform (WooCommerce / Shopify / custom webhook).</p>
+          </article>
+          <article class="card how-step">
+            <div class="how-icon" aria-hidden="true">
+              <svg width="28" height="28" viewBox="0 0 24 24"><path fill="currentColor" d="M12 2a10 10 0 1 0 10 10A10.011 10.011 0 0 0 12 2Zm1 15h-2v-2h2Zm0-4h-2V7h2Z"/></svg>
+            </div>
+            <h3>Pick a trigger event</h3>
+            <p>Choose the trigger (abandoned cart, sign‑up, newsletter, etc.).</p>
+          </article>
+          <article class="card how-step">
+            <div class="how-icon" aria-hidden="true">
+              <svg width="28" height="28" viewBox="0 0 24 24"><path fill="currentColor" d="M4 4h16v2H4zm0 4h16v2H4zm0 4h10v2H4zm0 4h10v2H4z"/></svg>
+            </div>
+            <h3>AI generates templates</h3>
+            <p>AI drafts your email templates; you can review or send directly.</p>
+          </article>
+          <article class="card how-step">
+            <div class="how-icon" aria-hidden="true">
+              <svg width="28" height="28" viewBox="0 0 24 24"><path fill="currentColor" d="M20 4H4a2 2 0 0 0-2 2v1l10 6l10-6V6a2 2 0 0 0-2-2Zm0 6.236l-8 4.8l-8-4.8V18a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2Z"/></svg>
+            </div>
+            <h3>Automatic sending</h3>
+            <p>Messages are sent via your integrations (Resend / Brevo / Gmail…). Everything is logged in the dashboard for optimization.</p>
+          </article>
+        </div>
+      </section>
+
+      <section id="cta" class="section container reveal">
+        <div class="cta-card">
+          <div class="sheen" aria-hidden="true"></div>
+          <span class="pill cta-pill">New • AI‑powered automations</span>
+          <h2>Ready to level up your conversion?</h2>
+          <p class="cta-sub">Join teams who grow revenue with automated upsell emails, your future team will thank you.</p>
+          <div class="cta-highlights">
+            <span class="chip">1‑click setup</span>
+            <span class="chip">AI templates</span>
+            <span class="chip">Woo & Shopify</span>
+          </div>
+          <div class="cta-actions">
+            <a class="btn primary" href="/signup">Get MailSpark</a>
+            <a class="btn ghost" href="#features">View Examples</a>
+          </div>
+          <p class="cta-note">7-Day Money-Back Guarantee • Cancel Anytime</p>
+        </div>
+      </section>
+
+      <section id="features" class="section container reveal">
+        <h2>Features</h2>
+        <div class="feature-grid advanced">
+          <article class="card feature-card fade-up">
+            <div class="feature-icon" aria-hidden="true">
+              <!-- Bolt icon for automated sending -->
+              <svg width="28" height="28" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M13 2L3 14h7l-1 8l10-12h-7l1-8Z"/></svg>
+            </div>
+            <h3>Automated sending</h3>
+            <p>Triggered by events like abandoned cart, new sign‑up, or purchase.</p>
+          </article>
+
+          <article class="card feature-card fade-up" style="--d:.06s">
+            <div class="feature-icon" aria-hidden="true">
+              <svg width="28" height="28" viewBox="0 0 24 24"><path fill="currentColor" d="M3 6h18v2H3zm0 5h12v2H3zm0 5h8v2H3z"/></svg>
+            </div>
+            <h3>AI content generation</h3>
+            <p>Automatically writes personalized subject and body, ready to send.</p>
+          </article>
+
+          <article class="card feature-card fade-up" style="--d:.12s">
+            <div class="feature-icon" aria-hidden="true">
+              <svg width="28" height="28" viewBox="0 0 24 24"><path fill="currentColor" d="M7 4h10v2H7zM5 8h14v2H5zm2 4h10v2H7zM5 16h8v2H5z"/></svg>
+            </div>
+            <h3>Dynamic content</h3>
+            <p>Personalized by name, product, discount, or date.</p>
+          </article>
+
+          <article class="card feature-card fade-up" style="--d:.18s">
+            <div class="feature-icon" aria-hidden="true">
+              <!-- Plug icon for integrations -->
+              <svg width="28" height="28" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M7 2v6H5v4h6v8h2v-8h6V8h-2V2h-2v6H9V2H7Z"/></svg>
+            </div>
+            <h3>Integrations</h3>
+            <p>Fast connection to your shop and webhooks, extendable as needed.</p>
+          </article>
+
+          <article class="card feature-card fade-up" style="--d:.24s">
+            <div class="feature-icon" aria-hidden="true">
+              <svg width="28" height="28" viewBox="0 0 24 24"><path fill="currentColor" d="M12 3l3 5h6l-4.5 4l1.7 6L12 15l-6.2 3l1.7-6L3 8h6Z"/></svg>
+            </div>
+            <h3>Sequences & campaigns</h3>
+            <p>Reminder emails, follow‑ups, and “if not opened” logic.</p>
+          </article>
+
+          <article class="card feature-card fade-up" style="--d:.30s">
+            <div class="feature-icon" aria-hidden="true">
+              <svg width="28" height="28" viewBox="0 0 24 24"><path fill="currentColor" d="M4 19V5h4l2 2h10v12H4Zm6-7h8v2h-8v-2Zm0 4h6v2h-6v-2Z"/></svg>
+            </div>
+            <h3>Performance dashboard</h3>
+            <p>Open, click, and bounce stats with charts for optimization.</p>
+          </article>
+
+          <article class="card feature-card fade-up" style="--d:.36s">
+            <div class="feature-icon" aria-hidden="true">
+              <svg width="28" height="28" viewBox="0 0 24 24"><path fill="currentColor" d="M12 2a10 10 0 1 0 10 10h-2A8 8 0 1 1 12 4v2l4-3l-4-3v2Z"/></svg>
+            </div>
+            <h3>Test & preview</h3>
+            <p>Send a test email before production — no surprises.</p>
+          </article>
+
+          <article class="card feature-card fade-up" style="--d:.42s">
+            <div class="feature-icon" aria-hidden="true">
+              <svg width="28" height="28" viewBox="0 0 24 24"><path fill="currentColor" d="M17 3H7v2h10V3Zm2 4H5a2 2 0 0 0-2 2v9a3 3 0 0 0 3 3h14V9a2 2 0 0 0-2-2ZM6 18a1 1 0 0 1-1-1v-5h6v6H6Zm8-6h6v6h-6v-6Z"/></svg>
+            </div>
+            <h3>Scheduling + retry</h3>
+            <p>Schedule sending at the optimal time with smart retry.</p>
+          </article>
+
+          
+        </div>
+      </section>
+
+      <section id="testimonials" class="section container reveal">
+        <h2>What customers say</h2>
+        <div class="testimonials-grid">
+          <article class="testimonial-card" itemscope itemtype="https://schema.org/Review">
+            <div class="t-head">
+              <div class="t-avatar">S</div>
+              <div>
+                <div class="t-name" itemprop="author">Sara K.</div>
+                <div class="t-role">Head of Growth • D2C Apparel</div>
+              </div>
+            </div>
+            <p class="t-quote" itemprop="reviewBody">Switching to MailSpark lifted our <strong>deliverability to 99.8%</strong>. Onboarding took <strong>under 10 minutes</strong>, and our abandoned‑cart flow recovered revenue in the first week.</p>
+            <div class="t-stars" aria-label="5 out of 5 stars">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 17.3l-6.18 3.64l1.64-7.03L2 9.27l7.19-.61L12 2l2.81 6.66L22 9.27l-5.46 4.64l1.64 7.03z"/></svg>
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 17.3l-6.18 3.64l1.64-7.03L2 9.27l7.19-.61L12 2l2.81 6.66L22 9.27l-5.46 4.64l1.64 7.03z"/></svg>
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 17.3l-6.18 3.64l1.64-7.03L2 9.27l7.19-.61L12 2l2.81 6.66L22 9.27l-5.46 4.64l1.64 7.03z"/></svg>
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 17.3l-6.18 3.64l1.64-7.03L2 9.27l7.19-.61L12 2l2.81 6.66L22 9.27l-5.46 4.64l1.64 7.03z"/></svg>
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 17.3l-6.18 3.64l1.64-7.03L2 9.27l7.19-.61L12 2l2.81 6.66L22 9.27l-5.46 4.64l1.64 7.03z"/></svg>
+            </div>
+          </article>
+          <article class="testimonial-card" itemscope itemtype="https://schema.org/Review">
+            <div class="t-head">
+              <div class="t-avatar">L</div>
+              <div>
+                <div class="t-name" itemprop="author">Leo M.</div>
+                <div class="t-role">CTO • SaaS Analytics</div>
+              </div>
+            </div>
+            <p class="t-quote" itemprop="reviewBody">We send <strong>2M+ emails monthly</strong> through MailSpark and stay out of spam. The API is clean, retries are smart, and the logs make compliance audits easy.</p>
+            <div class="t-stars" aria-label="5 out of 5 stars">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 17.3l-6.18 3.64l1.64-7.03L2 9.27l7.19-.61L12 2l2.81 6.66L22 9.27l-5.46 4.64l1.64 7.03z"/></svg>
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 17.3l-6.18 3.64l1.64-7.03L2 9.27l7.19-.61L12 2l2.81 6.66L22 9.27l-5.46 4.64l1.64 7.03z"/></svg>
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 17.3l-6.18 3.64l1.64-7.03L2 9.27l7.19-.61L12 2l2.81 6.66L22 9.27l-5.46 4.64l1.64 7.03z"/></svg>
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 17.3l-6.18 3.64l1.64-7.03L2 9.27l7.19-.61L12 2l2.81 6.66L22 9.27l-5.46 4.64l1.64 7.03z"/></svg>
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 17.3l-6.18 3.64l1.64-7.03L2 9.27l7.19-.61L12 2l2.81 6.66L22 9.27l-5.46 4.64l1.64 7.03z"/></svg>
+            </div>
+          </article>
+          <article class="testimonial-card" itemscope itemtype="https://schema.org/Review">
+            <div class="t-head">
+              <div class="t-avatar">N</div>
+              <div>
+                <div class="t-name" itemprop="author">Nina P.</div>
+                <div class="t-role">eCommerce Lead • Home Goods</div>
+              </div>
+            </div>
+            <p class="t-quote" itemprop="reviewBody">One‑click Shopify connect and the templates just worked. <strong>Abandoned‑cart revenue grew 23%</strong> in month one and we didn’t touch code.</p>
+            <div class="t-stars" aria-label="5 out of 5 stars">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 17.3l-6.18 3.64l1.64-7.03L2 9.27l7.19-.61L12 2l2.81 6.66L22 9.27l-5.46 4.64l1.64 7.03z"/></svg>
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 17.3l-6.18 3.64l1.64-7.03L2 9.27l7.19-.61L12 2l2.81 6.66L22 9.27l-5.46 4.64l1.64 7.03z"/></svg>
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 17.3l-6.18 3.64l1.64-7.03L2 9.27l7.19-.61L12 2l2.81 6.66L22 9.27l-5.46 4.64l1.64 7.03z"/></svg>
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 17.3l-6.18 3.64l1.64-7.03L2 9.27l7.19-.61L12 2l2.81 6.66L22 9.27l-5.46 4.64l1.64 7.03z"/></svg>
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 17.3l-6.18 3.64l1.64-7.03L2 9.27l7.19-.61L12 2l2.81 6.66L22 9.27l-5.46 4.64l1.64 7.03z"/></svg>
+            </div>
+          </article>
+        </div>
+      </section>
+
+      <section id="pricing" class="section container reveal">
+        <div class="section-header pricing-header">
+          <div class="pricing-intro">
+            <h2 class="pricing-title">Choose your plan</h2>
+            <p class="pricing-sub">Same features, different send limits. Start small or go big; you can change plans anytime.</p>
+            <div class="pricing-meta" aria-label="Uslovi i pogodnosti">
+              <div class="meta-item">
+                <!-- Shield check icon -->
+                <svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 2l7 3v6c0 5.5-3.8 9.9-7 11c-3.2-1.1-7-5.5-7-11V5l7-3Zm-1 12l-3-3l1.4-1.4L11 11.2l4.6-4.6L17 8l-6 6Z"/></svg>
+                <span>7‑day money‑back guarantee</span>
+              </div>
+              <div class="meta-item">
+                <!-- Clock arrow icon -->
+                <svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 2a10 10 0 1 0 10 10h-2a8 8 0 1 1-2.34-5.66l-1.66 1.66H22V2l-2.4 2.4A9.96 9.96 0 0 0 12 2Zm1 5h-2v6l5 3l1-1.73l-4-2.27V7Z"/></svg>
+                <span>Cancel anytime</span>
+              </div>
+            </div>
+          </div>
+          <div class="tabs" role="tablist" aria-label="Pricing plan">
+            <button class="tab active" data-plan="monthly" role="tab" aria-selected="true">Monthly</button>
+            <button class="tab" data-plan="yearly" role="tab" aria-selected="false">Yearly <span class="save">save 20%</span></button>
+          </div>
+        </div>
+        <div class="pricing-grid pricing-modern">
+          <article class="card price-card" data-monthly="29.9" data-yearly="24.9">
+            <div class="price-head">
+              <h3>Starter</h3>
+              <p class="price"><span class="currency">$</span> <span class="price-amount">29.90</span> <span class="period">/mo</span></p>
+            </div>
+            <ul class="price-features">
+              <li class="feat"><span class="ico-check" aria-hidden="true">✓</span> 3,000 emails</li>
+              <li class="feat"><span class="ico-check" aria-hidden="true">✓</span> 1 automation</li>
+              <li class="feat"><span class="ico-check" aria-hidden="true">✓</span> AI subject + body</li>
+              <li class="feat"><span class="ico-check" aria-hidden="true">✓</span> Basic analytics</li>
+              <li class="feat"><span class="ico-check" aria-hidden="true">✓</span> 1 integration (Woo or Shopify)</li>
+              <li class="feat"><span class="ico-check" aria-hidden="true">✓</span> Email templates</li>
+            </ul>
+            <a class="btn choose" href="#try">Odaberi</a>
+          </article>
+
+          <article class="card price-card highlight popular" data-monthly="49.9" data-yearly="39.9">
+            <div class="badge-popular">Najprodavaniji</div>
+            <div class="price-head">
+              <h3>Pro</h3>
+              <p class="price"><span class="currency">$</span> <span class="price-amount">49.90</span> <span class="period">/mo</span></p>
+            </div>
+            <ul class="price-features">
+              <li class="feat"><span class="ico-check" aria-hidden="true">✓</span> 10,000 emails</li>
+              <li class="feat"><span class="ico-check" aria-hidden="true">✓</span> up to 5 automations</li>
+              <li class="feat"><span class="ico-check" aria-hidden="true">✓</span> AI + personalization</li>
+              <li class="feat"><span class="ico-check" aria-hidden="true">✓</span> Detailed analytics</li>
+              <li class="feat"><span class="ico-check" aria-hidden="true">✓</span> Woo + Shopify + Webhook</li>
+              <li class="feat"><span class="ico-check" aria-hidden="true">✓</span> Test/Preview before sending</li>
+              <li class="feat"><span class="ico-check" aria-hidden="true">✓</span> Sequences (24h reminder, etc.)</li>
+            </ul>
+            <a class="btn choose" href="#try">Odaberi</a>
+          </article>
+
+          <article class="card price-card" data-monthly="99.9" data-yearly="79.9">
+            <div class="price-head">
+              <h3>Ultimate / Enterprise</h3>
+              <p class="price"><span class="currency">$</span> <span class="price-amount">99.90</span> <span class="period">/mo</span></p>
+            </div>
+            <ul class="price-features">
+              <li class="feat"><span class="ico-check" aria-hidden="true">✓</span> 50,000 emails</li>
+              <li class="feat"><span class="ico-check" aria-hidden="true">✓</span> Unlimited automations</li>
+              <li class="feat"><span class="ico-check" aria-hidden="true">✓</span> AI + dynamic content</li>
+              <li class="feat"><span class="ico-check" aria-hidden="true">✓</span> Analytics + export (CSV/Excel)</li>
+              <li class="feat"><span class="ico-check" aria-hidden="true">✓</span> Multi‑user / team access</li>
+              <li class="feat"><span class="ico-check" aria-hidden="true">✓</span> Dedicated IP</li>
+              
+              <li class="feat"><span class="ico-check" aria-hidden="true">✓</span> Custom integrations</li>
+              <li class="feat"><span class="ico-check" aria-hidden="true">✓</span> Scheduler + retry logic</li>
+            </ul>
+            <a class="btn choose" href="#try">Choose</a>
+          </article>
+        </div>
+      </section>
+
+      <!-- removed upgrade mini-cta for cleaner UX when logged-in -->
+
+      <section id="results" class="section container reveal">
+        <h2>Real Results from Real Senders</h2>
+        <div class="results-grid">
+          <div class="results-copy">
+            <ul class="stat-list">
+              <li class="stat-item">
+                <span class="ico">
+                  <!-- Shield/target icon -->
+                  <svg width="22" height="22" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 2l7 3v6c0 5.5-3.8 9.9-7 11c-3.2-1.1-7-5.5-7-11V5l7-3Zm0 4l-4 1.7V11c0 4.1 2.8 7.2 4 8c1.2-.8 4-3.9 4-8V7.7L12 6Zm0 3a3 3 0 1 1 0 6a3 3 0 0 1 0-6Z"/></svg>
+                </span>
+                <div class="stat-copy"><strong>99.8% deliverability rate</strong></div>
+              </li>
+              <li class="stat-item">
+                <span class="ico">
+                  <!-- Bolt icon -->
+                  <svg width="22" height="22" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M13 2L3 14h7l-1 8l10-12h-7l1-8Z"/></svg>
+                </span>
+                <div class="stat-copy"><strong>Under 10 minutes</strong> average setup time</div>
+              </li>
+              <li class="stat-item">
+                <span class="ico">
+                  <!-- Mail/send icon -->
+                  <svg width="22" height="22" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M2 6l20-4l-4 20l-7-7l-5 3l2-6zM7 13l3-2l3 3l2-8l-10 4z"/></svg>
+                </span>
+                <div class="stat-copy"><strong>2M+ emails</strong> sent monthly without hitting spam</div>
+              </li>
+              <li class="stat-item">
+                <span class="ico">
+                  <!-- Briefcase icon -->
+                  <svg width="22" height="22" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M10 4h4a2 2 0 0 1 2 2v2h4a2 2 0 0 1 2 2v7a3 3 0 0 1-3 3H5a3 3 0 0 1-3-3v-7a2 2 0 0 1 2-2h4V6a2 2 0 0 1 2-2Zm0 4h4V6h-4v2Zm-6 5h16v4a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1v-4Z"/></svg>
+                </span>
+                <div class="stat-copy"><strong>300+ brands</strong> across SaaS and eCommerce</div>
+              </li>
+            </ul>
+          </div>
+          <div class="results-chart">
+            <!-- Animated line chart -->
+            <svg viewBox="0 0 520 220" class="chart chart-animated" role="img" aria-label="Growth over time">
+              <defs>
+                <linearGradient id="r-grad" x1="0" x2="1" y1="0" y2="0">
+                  <stop offset="0%" stop-color="#ec4899"/>
+                  <stop offset="100%" stop-color="#8b5cf6"/>
+                </linearGradient>
+                <linearGradient id="r-fill" x1="0" x2="0" y1="0" y2="1">
+                  <stop offset="0%" stop-color="#ec489955"/>
+                  <stop offset="100%" stop-color="#ec489900"/>
+                </linearGradient>
+                <filter id="glow" x="-30%" y="-30%" width="160%" height="160%">
+                  <feGaussianBlur stdDeviation="6" result="coloredBlur"/>
+                  <feMerge>
+                    <feMergeNode in="coloredBlur"/>
+                    <feMergeNode in="SourceGraphic"/>
+                  </feMerge>
+                </filter>
+              </defs>
+              <polyline class="area" fill="url(#r-fill)" stroke="none" points="0,200 40,180 80,176 120,152 160,146 200,120 240,110 280,88 320,76 360,70 400,60 440,52 480,48 520,46 520,220 0,220"></polyline>
+              <polyline class="line" fill="none" stroke="url(#r-grad)" stroke-width="4" filter="url(#glow)"
+                points="0,200 40,180 80,176 120,152 160,146 200,120 240,110 280,88 320,76 360,70 400,60 440,52 480,48 520,46"></polyline>
+              <!-- moving dash highlight -->
+              <polyline class="line-dash" fill="none" stroke="url(#r-grad)" stroke-width="2" stroke-linecap="round" opacity="0.7" stroke-dasharray="14 180"
+                points="0,200 40,180 80,176 120,152 160,146 200,120 240,110 280,88 320,76 360,70 400,60 440,52 480,48 520,46"></polyline>
+            </svg>
+          </div>
+        </div>
+      </section>
+
+      <section id="faq" class="section container">
+        <h2>FAQ</h2>
+        <details class="faq-item" open>
+          <summary>Do I need my own SMTP?</summary>
+          <p>Yes. Automailer uses your SMTP credentials to send.</p>
+        </details>
+        <details class="faq-item">
+          <summary>Can I send HTML emails?</summary>
+          <p>Yes, both plain‑text and HTML content are supported.</p>
+        </details>
+        <details class="faq-item">
+          <summary>How do I test?</summary>
+          <p>Set your `.env` and try sending a message below.</p>
+        </details>
+      </section>
+
+      
+    </main>
+    <footer class="site-footer">
+      <div class="container footer-inner">
+        <a class="logo" href="/"><img src="/logo.png" alt="MailSpark" /></a>
+        <nav class="footer-nav" aria-label="Footer">
+          <a href="#features">Features</a>
+          <a href="#pricing">Pricing</a>
+          <a href="#faq">FAQ</a>
+          <a href="#results">Results</a>
+        </nav>
+        <div class="footer-meta">
+          <span>© 2025 MailSpark</span>
+          <span class="dot">•</span>
+          <a href="#" rel="nofollow">Terms</a>
+          <span class="dot">•</span>
+          <a href="#" rel="nofollow">Privacy</a>
+        </div>
+      </div>
+    </footer>
+
+    <!-- Firebase config and SDK (compat for no-bundle setup) -->
+    <script src="/firebase-config.js"></script>
+    <script src="/runtime-config.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.13.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.13.1/firebase-auth-compat.js"></script>
+    <script src="/main.js"></script>
+  </body>
+  </html>
+
+

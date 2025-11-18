@@ -147,10 +147,14 @@ export default async function handler(req, res) {
       });
     }
 
-    // Trigger automation
-    triggerAutomation(userId, eventId, eventType, eventData).catch(err => {
-      console.error('[WooCommerce Webhook] Automation trigger error:', err);
-    });
+    // Trigger automation odmah samo za ne-abandoned događaje.
+    if (eventType !== 'cart_abandoned') {
+      triggerAutomation(userId, eventId, eventType, eventData).catch(err => {
+        console.error('[WooCommerce Webhook] Automation trigger error:', err);
+      });
+    } else {
+      console.log('[WooCommerce Webhook] Skipping immediate automation for event:', eventType);
+    }
 
     return res.status(200).json({
       success: true,
@@ -170,11 +174,25 @@ export default async function handler(req, res) {
 
 async function triggerAutomation(userId, eventId, eventType, eventData) {
   try {
-    const response = await fetch(`${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/api/automation/trigger`, {
+    const baseUrl =
+      process.env.INTERNAL_API_BASE_URL ||
+      process.env.NEXT_PUBLIC_APP_URL ||
+      (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'http://localhost:3000');
+
+    const headers = {
+      'Content-Type': 'application/json',
+    };
+    const bypass =
+      process.env.VERCEL_PROTECTION_BYPASS ||
+      process.env.PROTECTION_BYPASS_TOKEN ||
+      process.env.VERCEL_BYPASS_TOKEN;
+    if (bypass) {
+      headers['x-vercel-protection-bypass'] = bypass;
+    }
+
+    const response = await fetch(`${baseUrl}/api/automation/trigger`, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
+      headers,
       body: JSON.stringify({
         userId,
         eventId,

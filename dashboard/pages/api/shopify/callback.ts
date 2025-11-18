@@ -3,6 +3,67 @@ import crypto from 'crypto';
 import { exchangeCodeForToken, normalizeShopDomain } from '../../../lib/shopify';
 import { getFirestore } from '../../../lib/firestoreAdmin';
 import { encryptAccessToken } from '../../../lib/shopify';
+import { adminDatabase } from '../../../lib/firebaseAdmin';
+
+async function tryRegisterWebhooks(shop: string, accessToken: string) {
+  try {
+    const base =
+      process.env.NEXT_PUBLIC_APP_URL ||
+      (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : '');
+    if (!base) return;
+    const address = `${base}/api/webhooks/shopify`;
+    const topics = [
+      'checkouts/update',
+      'carts/update',
+      'orders/create',
+      'app/uninstalled',
+    ];
+    // Register each webhook idempotently
+    for (const topic of topics) {
+      try {
+        await fetch(`https://${shop}/admin/api/2024-07/webhooks.json`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-Shopify-Access-Token': accessToken,
+          },
+          body: JSON.stringify({
+            webhook: {
+              topic,
+              address,
+              format: 'json',
+            },
+          }),
+        });
+      } catch (_) {}
+    }
+  } catch (_) {}
+}
+
+async function tryInstallScriptTag(shop: string, accessToken: string) {
+  try {
+    const base =
+      process.env.NEXT_PUBLIC_APP_URL ||
+      (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : '');
+    if (!base) return;
+    const src = `${base}/cart-tracker.js`;
+    // Create ScriptTag to load tracker across storefront pages (cart, product, etc.)
+    await fetch(`https://${shop}/admin/api/2024-07/script_tags.json`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Shopify-Access-Token': accessToken,
+      },
+      body: JSON.stringify({
+        script_tag: {
+          event: 'onload',
+          src,
+          display_scope: 'online_store',
+        },
+      }),
+    });
+  } catch (_) {}
+}
 
 function verifyState(stateB64: string): string | null {
   try {
@@ -42,6 +103,30 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       connectedAt: new Date(),
       active: true,
     }, { merge: true });
+
+    // Map shop domain to our userId for quick resolution in webhooks/pixel
+    try {
+      const rawKey = shop.toLowerCase();
+      const underscoreKey = rawKey.replace(/\./g, '_');
+      await adminDatabase.ref(`storeOwners/${rawKey}`).set(uid);
+      await adminDatabase.ref(`storeOwners/${underscoreKey}`).set(uid);
+    } catch (_) {}
+
+    // Mirror connection into Realtime Database so webhook može čitati accessToken
+    try {
+      await adminDatabase.ref(`users/${uid}/integrations/shopify`).update({
+        shop,
+        accessToken: token,
+        connectedAt: Date.now(),
+        lastSynced: Date.now(),
+      });
+    } catch (_) {}
+
+    // Attempt to auto-register webhooks so korisnik ne mora ništa ručno
+    try { await tryRegisterWebhooks(shop, token); } catch (_) {}
+    // Attempt to auto-install ScriptTag (cart/page tracker). Napomena: ne učitava se na checkoutu (osim Plus),
+    // ali pokriva cart i većinu tema za rani capture emaila.
+    try { await tryInstallScriptTag(shop, token); } catch (_) {}
 
     // Redirect to dashboard after connect
     const appUrl = process.env.NEXT_PUBLIC_APP_URL || '';

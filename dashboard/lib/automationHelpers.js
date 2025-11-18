@@ -214,34 +214,185 @@ export async function markEmailAsSent(adminDatabase, userId, eventId, campaignTy
  */
 export async function getActiveCampaign(adminDatabase, userId, campaignType) {
   try {
+    const DEBUG = String(process.env.AUTOMATION_DEBUG || '').trim() === '1';
+    // Read both active campaigns and drafts (defensive: some UIs may save wrong bucket)
     const campaignsRef = adminDatabase.ref(`users/${userId}/campaigns`);
-    const snapshot = await campaignsRef.once('value');
+    const draftsRef = adminDatabase.ref(`users/${userId}/campaigns_drafts`);
+    const [snapshot, draftsSnap] = await Promise.all([
+      campaignsRef.once('value'),
+      draftsRef.once('value').catch(() => null),
+    ]);
     
     if (!snapshot.exists()) {
-      return null;
+      // If there are zero regular campaigns but drafts exist, we still continue
+      if (!draftsSnap || !draftsSnap.exists()) {
+        return null;
+      }
     }
 
-    const campaigns = snapshot.val();
+    const campaignsData = snapshot.exists() ? (snapshot.val() || {}) : {};
+    const draftsData = draftsSnap && draftsSnap.exists() ? (draftsSnap.val() || {}) : {};
+    // Merge nodes (drafts won't pass isActive unless explicitly set)
+    const campaigns = { ...campaignsData, ...draftsData };
+    if (DEBUG) {
+      try {
+        const keys = Object.keys(campaigns);
+        console.log('[Automation][debug] getActiveCampaign:', {
+          userId,
+          campaignType,
+          keysCount: keys.length,
+          keysPreview: keys.slice(0, 5),
+        });
+      } catch (_) {}
+    }
 
     // Helper to normalize campaign type strings (e.g., "Abandoned Cart" -> "abandoned_cart")
-    const normalizeType = (t) => String(t || '')
-      .toLowerCase()
-      .replace(/\s+/g, '_')
-      .trim();
+    const normalizeType = (t) => {
+      const v = String(t || '')
+        .toLowerCase()
+        .normalize('NFD')                // remove diacritics
+        .replace(/[\u0300-\u036f]/g, '')
+        .replace(/[\s-]+/g, '_')         // treat spaces and hyphens equally
+        .trim();
+      // Treat legacy/default Brevo type as abandoned cart in our automation
+      return v === 'classic' ? 'abandoned_cart' : v;
+    };
 
     const targetType = normalizeType(campaignType);
+    const isActive = (c) => {
+      const raw = (c?.status ?? c?.sender?.status);
+      const s = String(raw ?? '').toLowerCase();
+      // Accept common variants and booleans/numbers-as-strings
+      return (
+        s === 'active' ||
+        s === 'enabled' ||
+        s === 'running' ||
+        s === 'live' ||
+        s === 'on' ||
+        s === 'published' ||
+        raw === true ||
+        raw === 1 ||
+        s === '1'
+      ) || c?.enabled === true;
+    };
 
-    const campaignId = Object.keys(campaigns).find(id => {
+    // 1) Exact match by explicit metadata.campaignType (preferred)
+    let campaignId = Object.keys(campaigns).find(id => {
       const campaign = campaigns[id];
       const storedType = normalizeType(
         campaign?.metadata?.campaignType || campaign?.type
       );
-      return campaign.status === 'active' && storedType === targetType;
+      return isActive(campaign) && storedType === targetType;
     });
 
+    // 2) Heuristic: infer type from campaign name when metadata missing
     if (!campaignId) {
+      // First try ACTIVE by name
+      campaignId = Object.keys(campaigns).find(id => {
+        const c = campaigns[id];
+        if (!isActive(c)) return false;
+        const name = String(c?.name || c?.metadata?.name || '').toLowerCase();
+        const looksAbandoned = name.includes('abandoned') || name.includes('napu') || name.includes('cart');
+        const looksWelcome = name.includes('welcome');
+        const looksPostPurchase = name.includes('post') || name.includes('thank');
+        const inferred =
+          looksAbandoned ? 'abandoned_cart' :
+          looksWelcome ? 'welcome_email' :
+          looksPostPurchase ? 'post_purchase' : null;
+        return inferred === targetType;
+      });
+      // If no ACTIVE by name, allow ANY by name (covers slučaj kad status stoji u sender.status ili nedostaje)
+      if (!campaignId) {
+        campaignId = Object.keys(campaigns).find(id => {
+          const c = campaigns[id];
+          const name = String(c?.name || c?.metadata?.name || '').toLowerCase();
+          const looksAbandoned = name.includes('abandoned') || name.includes('napu') || name.includes('cart');
+          const looksWelcome = name.includes('welcome');
+          const looksPostPurchase = name.includes('post') || name.includes('thank');
+          const inferred =
+            looksAbandoned ? 'abandoned_cart' :
+            looksWelcome ? 'welcome_email' :
+            looksPostPurchase ? 'post_purchase' : null;
+          return inferred === targetType;
+        });
+      }
+    }
+
+    // 3) Fallback: if there's exactly one active campaign, use it
+    if (!campaignId) {
+      const activeIds = Object.keys(campaigns).filter(id => isActive(campaigns[id]));
+      if (activeIds.length === 1) {
+        campaignId = activeIds[0];
+      }
+    }
+
+    // 4) Last-resort within this user: if there's exactly one campaign with matching type
+    // regardless of status (covers mis-set status cases), use it.
+    if (!campaignId) {
+      const typeMatchedIds = Object.keys(campaigns).filter(id => {
+        const c = campaigns[id];
+        const storedType = normalizeType(c?.metadata?.campaignType || c?.type);
+        return storedType === targetType;
+      });
+      if (typeMatchedIds.length === 1) {
+        campaignId = typeMatchedIds[0];
+      }
+    }
+
+    // 5) Absolute last-resort: ako postoji samo jedna kampanja ukupno, koristi je
+    if (!campaignId) {
+      const allIds = Object.keys(campaigns);
+      if (allIds.length === 1) {
+        campaignId = allIds[0];
+      }
+    }
+    // 6) Pick the most recently updated/created campaign as a defensive default
+    if (!campaignId) {
+      const entries = Object.entries(campaigns || {});
+      if (entries.length > 0) {
+        entries.sort((a, b) => {
+          const aTime = Number(b?.[1]?.updatedAt || b?.[1]?.createdAt || 0);
+          const bTime = Number(a?.[1]?.updatedAt || a?.[1]?.createdAt || 0);
+          return aTime - bTime;
+        });
+        campaignId = entries[0][0];
+      }
+    }
+
+    if (!campaignId) {
+      if (DEBUG) {
+        try {
+          console.log('[Automation][debug] No campaignId matched for', { userId, targetType });
+        } catch (_) {}
+      }
       return null;
     }
+
+    // Auto-normalize/persist fixes if needed (so naredni put bude čist)
+    try {
+      const selected = campaigns[campaignId] || {};
+      const ref = adminDatabase.ref(`users/${userId}/campaigns/${campaignId}`);
+      const normalizedType = normalizeType(selected?.metadata?.campaignType || selected?.type);
+      const rootStatus = String(selected?.status ?? '').toLowerCase();
+      const senderStatus = String(selected?.sender?.status ?? '').toLowerCase();
+      const shouldSetType = normalizedType !== targetType;
+      const shouldSetStatus =
+        !rootStatus ||
+        (rootStatus !== 'active' && senderStatus === 'active');
+      if (shouldSetType || shouldSetStatus) {
+        const patch = {};
+        if (shouldSetType) {
+          patch['metadata'] = { ...(selected?.metadata || {}), campaignType: targetType };
+        }
+        if (shouldSetStatus) {
+          patch['status'] = 'active';
+        }
+        await ref.update({ ...patch, updatedAt: Date.now() }).catch(() => {});
+        if (DEBUG) {
+          console.log('[Automation][debug] Campaign node normalized for', { userId, campaignId, patchApplied: Object.keys(patch) });
+        }
+      }
+    } catch (_) {}
 
     return {
       id: campaignId,

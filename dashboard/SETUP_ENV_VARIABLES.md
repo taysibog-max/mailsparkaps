@@ -63,6 +63,22 @@ WEBHOOK_SECRET=your_secure_webhook_secret
 CRON_SECRET=your_secure_cron_secret
 
 # ========================================
+# Internal API calls (server-to-server)
+# ========================================
+# Optional explicit base URL for internal fetch() calls.
+# If not set, the app will use:
+#   INTERNAL_API_BASE_URL → NEXT_PUBLIC_APP_URL → https://${VERCEL_URL} → http://localhost:3000
+INTERNAL_API_BASE_URL=
+
+# If your Vercel project has Password Protection enabled,
+# set the bypass token so internal calls (webhooks/CRON) don't get 401.
+# You can find it in: Vercel → Project → Settings → Protection → Bypass token
+VERCEL_PROTECTION_BYPASS=
+# (Also supported aliases if you prefer)
+PROTECTION_BYPASS_TOKEN=
+VERCEL_BYPASS_TOKEN=
+
+# ========================================
 # APP CONFIGURATION
 # ========================================
 NEXT_PUBLIC_APP_URL=http://localhost:3000

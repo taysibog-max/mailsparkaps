@@ -16,8 +16,9 @@ export default async function handler(req, res) {
   // Allow GET for manual trigger, but verify cron secret for security
   const cronSecret = req.headers['authorization']?.replace('Bearer ', '');
   const isManualTrigger = req.query.manual === 'true';
+  const isVercelCron = Boolean(req.headers['x-vercel-cron']); // Vercel Cron adds this header
 
-  if (!isManualTrigger && cronSecret !== process.env.CRON_SECRET) {
+  if (!isManualTrigger && !isVercelCron && cronSecret !== process.env.CRON_SECRET) {
     console.error('[CRON] Unauthorized access attempt');
     return res.status(401).json({ error: 'Unauthorized' });
   }
@@ -59,8 +60,8 @@ export default async function handler(req, res) {
             skippedCount++;
             continue;
           }
-          // Only pixel with email and items
-          if (event?.source !== 'pixel' || !event?.customerEmail) { skippedCount++; continue; }
+          // Za obradu je dovoljan email (source može biti 'pixel' ili 'shopify')
+          if (!event?.customerEmail) { skippedCount++; continue; }
           if (!Array.isArray(event?.items) || event.items.length === 0) { skippedCount++; continue; }
           // Old enough
           const cartAge = now - Number(event?.createdAt || 0);
@@ -69,24 +70,38 @@ export default async function handler(req, res) {
           valid.push({ eventId, ...event });
         }
 
-        // 2) Dedupe: zadrži samo najnoviji po emailu
-        const latestByEmail = new Map();
+        // 2) Dedupe: zadrži samo najnoviji po checkout tokenu (ako postoji), inače po emailu
+        const latestByKey = new Map();
         for (const ev of valid) {
-          const key = String(ev.customerEmail).toLowerCase().trim();
-          const prev = latestByEmail.get(key);
+          const tokenKey = ev?.token ? `token:${String(ev.token).trim()}` : null;
+          const emailKey = String(ev.customerEmail || '').toLowerCase().trim();
+          const key = tokenKey || `email:${emailKey}`;
+          const prev = latestByKey.get(key);
           if (!prev || Number(ev.createdAt || 0) > Number(prev.createdAt || 0)) {
-            latestByEmail.set(key, ev);
+            latestByKey.set(key, ev);
           }
         }
 
         // 3) Procesiraj samo izabrane (najnovije) događaje
-        for (const [, ev] of latestByEmail) {
+        for (const [, ev] of latestByKey) {
           try {
             console.log('[CRON] Triggering automation for:', ev.eventId);
 
-            const response = await fetch(`${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/api/automation/trigger`, {
+            const baseUrl =
+              process.env.INTERNAL_API_BASE_URL ||
+              process.env.NEXT_PUBLIC_APP_URL ||
+              (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'http://localhost:3000');
+            const headers = { 'Content-Type': 'application/json' };
+            const bypass =
+              process.env.VERCEL_PROTECTION_BYPASS ||
+              process.env.PROTECTION_BYPASS_TOKEN ||
+              process.env.VERCEL_BYPASS_TOKEN;
+            if (bypass) {
+              headers['x-vercel-protection-bypass'] = bypass;
+            }
+            const response = await fetch(`${baseUrl}/api/automation/trigger`, {
               method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
+              headers,
               body: JSON.stringify({
                 userId,
                 eventId: ev.eventId,

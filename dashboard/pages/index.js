@@ -1,11 +1,10 @@
 export default function IndexRedirect() { return null; }
 
 export async function getServerSideProps() {
-  const base = process.env.NEXT_PUBLIC_MARKETING_ORIGIN || process.env.MARKETING_ORIGIN;
-  const destination = base ? base + '/' : '/dashboard/integrations';
+  // Redirect root to static marketing homepage served from Next public/
   return {
     redirect: {
-      destination,
+      destination: '/index.html',
       permanent: false,
     },
   };

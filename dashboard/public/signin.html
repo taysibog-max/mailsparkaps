@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="bs">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Prijava • MailSpark</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-auth-compat.js"></script>
+    <script src="/firebase-config.js"></script>
+    <main class="auth-split">
+      <section class="auth-left auth-light">
+        <div class="auth-left-inner">
+          <a href="/" class="back-link">← Početna</a>
+          <a href="/" class="brand"><img src="/logo.png" alt="MailSpark" /></a>
+          <h1>Dobrodošli.</h1>
+          <p class="muted">Prijavite se e‑mail adresom i lozinkom.</p>
+          <form id="login-form" class="auth-form light">
+            <label>
+              E‑mail adresa
+              <input class="auth-input" type="email" placeholder="you@domena.com" required />
+            </label>
+            <label>
+              Lozinka
+              <input class="auth-input" type="password" placeholder="••••••••" required minlength="8" />
+            </label>
+            <button class="btn primary full" type="submit">
+              <span>Nastavi</span>
+              <svg width="16" height="16" viewBox="0 0 24 24" aria-hidden="true" style="margin-left:8px"><path fill="currentColor" d="M13 5l7 7l-7 7v-4H4v-6h9V5Z"/></svg>
+            </button>
+            <div class="auth-divider">ili</div>
+            <button id="google-btn" class="btn oauth full" type="button">
+              <span>Prijava s Google‑om</span>
+            </button>
+            <div id="auth-status" class="auth-status" role="status" aria-live="polite"></div>
+          </form>
+          <p class="auth-note dark">Nemaš račun? <a href="/signup">Registruj se</a></p>
+        </div>
+      </section>
+      <section class="auth-right">
+        <canvas id="auth-grid" class="auth-grid"></canvas>
+      </section>
+    </main>
+    <script>
+      // Firebase init (if provided)
+      if (window.FIREBASE_CONFIG) { firebase.initializeApp(window.FIREBASE_CONFIG); }
+      // Flash messages from redirects
+      (function(){
+        var params = new URLSearchParams(location.search);
+        var m = params.get('m'); if(!m) return;
+        var s = document.getElementById('auth-status');
+        if(m==='logged-out'){ s.textContent = 'Odjavljeni ste.'; s.className='auth-status success'; }
+        if(m==='please-login'){ s.textContent = 'Prijavite se za pristup.'; s.className='auth-status'; }
+      })();
+      // Handle login
+      document.getElementById('login-form').addEventListener('submit', async function(e){
+        e.preventDefault();
+        try {
+          var email = this.querySelector('input[type="email"]').value;
+          var pass = this.querySelector('input[type="password"]').value;
+          if (!firebase.apps.length) { alert('Firebase nije konfigurisan.'); return; }
+          await firebase.auth().signInWithEmailAndPassword(email, pass);
+          document.getElementById('auth-status').textContent = 'Uspješno prijavljeni.';
+          document.getElementById('auth-status').className = 'auth-status success';
+          setTimeout(function(){ window.location.href = '/'; }, 500);
+        } catch (err) {
+          var s = document.getElementById('auth-status');
+          s.textContent = 'Greška: ' + (err.message || err);
+          s.className = 'auth-status error';
+        }
+      });
+
+      // Google sign‑in
+      document.getElementById('google-btn').addEventListener('click', async function(){
+        try{
+          var provider = new firebase.auth.GoogleAuthProvider();
+          await firebase.auth().signInWithPopup(provider);
+          window.location.href = '/';
+        }catch(err){
+          var s = document.getElementById('auth-status');
+          s.textContent = 'Greška: ' + (err.message || err);
+          s.className = 'auth-status error';
+        }
+      });
+
+      // Simple animated grid with glow points
+      (function(){
+        var canvas = document.getElementById('auth-grid');
+        if(!canvas) return;
+        var ctx = canvas.getContext('2d');
+        function resize(){
+          var dpr = window.devicePixelRatio||1; var rect = canvas.getBoundingClientRect();
+          canvas.width = rect.width*dpr; canvas.height = rect.height*dpr; ctx.setTransform(dpr,0,0,dpr,0,0);
+        }
+        function draw(){
+          var w = canvas.clientWidth, h = canvas.clientHeight; ctx.clearRect(0,0,w,h);
+          ctx.strokeStyle = 'rgba(255,255,255,0.06)'; ctx.lineWidth = 1;
+          var grid = 36; // px
+          for(var x=0; x<w; x+=grid){ ctx.beginPath(); ctx.moveTo(x,0); ctx.lineTo(x,h); ctx.stroke(); }
+          for(var y=0; y<h; y+=grid){ ctx.beginPath(); ctx.moveTo(0,y); ctx.lineTo(w,y); ctx.stroke(); }
+          // glow dots
+          var t = Date.now()/1000; for(var i=0;i<18;i++){ var px = (i*97+t*20)%w; var py = (i*71+t*13)%h; var r=1.2+Math.sin(t+i)*0.8;
+            var grad = ctx.createRadialGradient(px,py,0,px,py,8); grad.addColorStop(0,'rgba(168,85,247,0.6)'); grad.addColorStop(1,'rgba(168,85,247,0)');
+            ctx.fillStyle = grad; ctx.beginPath(); ctx.arc(px,py,8,0,Math.PI*2); ctx.fill();
+          }
+          requestAnimationFrame(draw);
+        }
+        function on(){ resize(); draw(); }
+        on(); window.addEventListener('resize', resize);
+      })();
+    </script>
+  </body>
+  </html>
+
+

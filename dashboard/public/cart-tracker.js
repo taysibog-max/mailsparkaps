@@ -46,6 +46,9 @@
       inactivityThresholdSeconds: 60,
       abandonedThresholdMinutes: 30,
       heartbeatIntervalSeconds: 30,
+      // Dodatni uslovi: pošalji samo ako su ova polja popunjena
+      // Podržane vrijednosti: 'email','name','phone','address','city','zip','country','items'
+      requireFields: [],
     },
 
     state: {
@@ -277,6 +280,46 @@
     },
 
     /**
+     * Provjeri da li su tražena polja popunjena
+     */
+    areRequiredFieldsComplete(isAbandonedFlow = false) {
+      const need = Array.isArray(this.config.requireFields) ? this.config.requireFields : [];
+      if (need.length === 0) return true; // ništa nije traženo
+
+      const has = {
+        email: this.isValidEmail(this.state.userEmail || ''),
+        name: !!(this.state.userName && this.state.userName.trim().length > 1),
+        phone: !!(this.state.userPhone && this.state.userPhone.trim().length > 3),
+        items: Array.isArray(this.state.cartItems) && this.state.cartItems.length > 0,
+        address: false,
+        city: false,
+        zip: false,
+        country: false,
+      };
+
+      // pokušaj pročitati adresne podatke direktno iz DOM-a (najčešći selektori)
+      try {
+        const readVal = (sel) => {
+          const el = document.querySelector(sel);
+          return (el && typeof el.value === 'string') ? el.value.trim() : '';
+        };
+        const addr = readVal('[data-cart-address], input[name*=\"address\" i], #address, .address-line, .address1');
+        const city = readVal('[data-cart-city], input[name*=\"city\" i], #city, .city');
+        const zip  = readVal('[data-cart-zip], input[name*=\"zip\" i], input[name*=\"postal\" i], #zip, #postal_code, .zip, .postal-code');
+        const country = readVal('[data-cart-country], select[name*=\"country\" i], #country, .country');
+        has.address = !!addr;
+        has.city = !!city;
+        has.zip = !!zip;
+        has.country = !!country;
+      } catch (_) {}
+
+      // za debug, ali ne loguj privatne vrijednosti
+      this.log('🧪 Field completeness', { need, has, isAbandonedFlow });
+
+      return need.every((k) => has[k] === true);
+    },
+
+    /**
      * Šalje podatke na backend
      */
     async sendToBackend(isAbandoned = false) {
@@ -286,6 +329,12 @@
       }
 
       this.captureCartData(); // Refresh cart data
+
+       // Ako je zahtijevano kompletiranje polja, enforce
+       if (!this.areRequiredFieldsComplete(isAbandoned)) {
+         this.log('⛔ Zahtijevana polja nisu kompletna - preskačem slanje', this.config.requireFields);
+         return;
+       }
 
       const payload = {
         cart_id: this.state.cartId,
@@ -339,6 +388,12 @@
       if (this.state.userEmail && this.isValidEmail(this.state.userEmail)) {
         this.log('🚪 Korisnik napušta stranicu - šaljem podatke o napuštenoj korpi');
         
+        // Ako su tražena polja, provjeri da li su popunjena
+        if (!this.areRequiredFieldsComplete(true)) {
+          this.log('⛔ Zahtijevana polja nisu kompletna (leave flow) - ne označavam kao abandoned');
+          return;
+        }
+
         // Use sendBeacon for reliable delivery
         const payload = JSON.stringify({
           cart_id: this.state.cartId,

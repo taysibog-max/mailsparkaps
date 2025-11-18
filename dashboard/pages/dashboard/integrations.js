@@ -406,6 +406,8 @@ function ShopifyCard(){
   const [userUid, setUserUid] = useState('');
   const [pixelToken, setPixelToken] = useState('');
   const [setupMsg, setSetupMsg] = useState('');
+  const [showModeModal, setShowModeModal] = useState(false);
+  const [selectingMode, setSelectingMode] = useState(false);
   
   useEffect(()=>{ let unsub;
     (async()=>{
@@ -414,6 +416,15 @@ function ShopifyCard(){
         if (!u) return;
         try { setUserUid(u.uid || ''); } catch(_) {}
         setInitialLoading(true);
+        // Allow forcing the mode chooser via URL param ?forceMode=1
+        try {
+          if (typeof window !== 'undefined') {
+            const usp = new URLSearchParams(window.location.search || '');
+            if (usp.get('forceMode') === '1') {
+              setShowModeModal(true);
+            }
+          }
+        } catch(_) {}
         // Fetch pixel token (signed) for this user
         try {
           const idt = await auth.currentUser?.getIdToken?.(true);
@@ -451,6 +462,15 @@ function ShopifyCard(){
               console.error('Background Shopify refresh failed:', e);
             }
           }, 100);
+
+          // Ako je integracija povezana, a modal za izbor moda nije postavljen, prikaži ga i u cache grani
+          try {
+            const modeSnap = await get(ref(db, `users/${u.uid}/integrations/shopify/mode`)).catch(()=>null);
+            const mv = modeSnap && modeSnap.exists() ? String(modeSnap.val()||'').toUpperCase() : '';
+            if (!modeSnap || !modeSnap.exists() || (mv !== 'FAST' && mv !== 'SILENT')) {
+              setShowModeModal(true);
+            }
+          } catch(_) {}
           return;
         }
         
@@ -490,6 +510,14 @@ function ShopifyCard(){
           setShop(storeData.shop);
           if (storeData.accessToken) setAccessToken(storeData.accessToken);
           saveToCache(cacheKey, storeData);
+          // Prompt for mode if not already set
+          try {
+            const modeSnap = await get(ref(db, `users/${u.uid}/integrations/shopify/mode`)).catch(()=>null);
+            const mv = modeSnap && modeSnap.exists() ? String(modeSnap.val()||'').toUpperCase() : '';
+            if (!modeSnap || !modeSnap.exists() || (mv !== 'FAST' && mv !== 'SILENT')) {
+              setShowModeModal(true);
+            }
+          } catch(_) {}
         }
         
         setInitialLoading(false);
@@ -521,6 +549,27 @@ analytics.subscribe('checkout_contact_information_submitted',(event)=>{const ch=
 // Fallback: ponekad email dobijemo tek na shipping koraku
 analytics.subscribe('checkout_shipping_info_submitted',(event)=>{const ch=event?.data?.checkout||{};if(ch?.email||ch?.contactEmail){post('contact_info',{checkoutToken:ch?.token||ch?.id||null,email:ch?.email||ch?.contactEmail||null});}});
 analytics.subscribe('checkout_completed',(event)=>{const ch=event?.data?.checkout||{};post('completed',{checkoutToken:ch?.token||ch?.id||null,orderId:event?.data?.order?.id||null});});`;
+  }
+
+  async function selectMode(mode){
+    try {
+      setSelectingMode(true);
+      const { auth } = getFirebaseApp();
+      const idt = await auth.currentUser?.getIdToken?.(true);
+      if (!idt) throw new Error('Not authenticated');
+      const r = await fetch('/api/integrations/shopify/set-mode', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${idt}` },
+        body: JSON.stringify({ mode })
+      });
+      const d = await r.json().catch(()=>({}));
+      if (!r.ok) throw new Error(d?.error || 'Failed to save mode');
+      setShowModeModal(false);
+    } catch (e) {
+      setErr(e?.message || 'Failed to set mode');
+    } finally {
+      setSelectingMode(false);
+    }
   }
 
   function copyPixel(){
@@ -578,6 +627,8 @@ analytics.subscribe('checkout_completed',(event)=>{const ch=event?.data?.checkou
       
       progressBar.update(100);
       progressBar.complete();
+      // Open mode chooser after successful connect
+      setShowModeModal(true);
     } catch(e){
       setErr(e?.message||'Failed to connect');
       progressBar.reset();
@@ -658,6 +709,43 @@ analytics.subscribe('checkout_completed',(event)=>{const ch=event?.data?.checkou
       transition={{ delay: 0.1 }}
       className="rounded-2xl border border-white/10 bg-zinc-950/60 shadow-[0_10px_30px_rgba(0,0,0,0.25)] p-6"
     >
+      {showModeModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-6 bg-black/60 backdrop-blur-sm">
+          <div className="w-full max-w-3xl rounded-2xl border border-white/10 bg-[#0f1117] shadow-2xl">
+            <div className="p-6 border-b border-white/10 flex items-center justify-between">
+              <h3 className="text-xl font-bold text-white">Choose automation mode</h3>
+              <button onClick={()=>setShowModeModal(false)} className="text-neutral-400 hover:text-white">✕</button>
+            </div>
+            <div className="p-6 grid grid-cols-1 md:grid-cols-2 gap-4">
+              <button
+                onClick={()=>selectMode('FAST')}
+                className="text-left rounded-xl border border-emerald-500/30 bg-emerald-500/10 hover:bg-emerald-500/15 p-5 transition shadow-lg"
+                disabled={selectingMode}
+              >
+                <div className="text-emerald-400 font-semibold mb-1">FAST (recommended)</div>
+                <div className="text-sm text-neutral-300">
+                  Real‑time emails. Installs a lightweight ScriptTag to capture email on the cart/drawer and triggers
+                  abandoned cart emails instantly. No theme edits required.
+                </div>
+              </button>
+              <button
+                onClick={()=>selectMode('SILENT')}
+                className="text-left rounded-xl border border-blue-500/30 bg-blue-500/10 hover:bg-blue-500/15 p-5 transition shadow-lg"
+                disabled={selectingMode}
+              >
+                <div className="text-blue-400 font-semibold mb-1">SILENT</div>
+                <div className="text-sm text-neutral-300">
+                  No storefront UI changes. Emails send when Shopify provides the email via webhook (usually after “Continue to shipping”),
+                  with CRON as fallback.
+                </div>
+              </button>
+            </div>
+            <div className="p-5 border-t border-white/10 text-xs text-neutral-400">
+              You can change the mode later in settings.
+            </div>
+          </div>
+        </div>
+      )}
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-3">
           <ShopifyIcon />
@@ -669,6 +757,17 @@ analytics.subscribe('checkout_completed',(event)=>{const ch=event?.data?.checkou
             <HelpCircle className="h-4 w-4 text-neutral-300" />
           </button>
           {!initialLoading && <StatusPill connected={status.connected} />}
+          {/* Always allow opening the mode chooser manually */}
+          {status.connected && (
+            <button
+              type="button"
+              onClick={()=>setShowModeModal(true)}
+              className="ml-2 px-3 py-1.5 rounded-md text-xs bg-gradient-to-r from-emerald-500 to-teal-600 text-white shadow hover:opacity-95"
+              title="Choose FAST or SILENT mode"
+            >
+              Choose Mode
+            </button>
+          )}
         </div>
       </div>
       {showGuide && (

@@ -161,9 +161,36 @@ export default async function handler(req, res) {
       return fromNotes?.value || '';
     };
 
-    // Ignore carts/update and checkout create/update here - cart abandonment se obrađuje pixelom
-    if (topic === 'carts/update' || topic === 'checkouts/create' || topic === 'checkouts/update') {
+    // carts/update se i dalje ignorira (nema email); za checkouts/* NE ignoriramo više – koristimo ih kao signal za napuštenu korpu sa emailom
+    if (topic === 'carts/update') {
       return res.status(200).json({ success: true, ignored: true });
+    } else if (topic === 'checkouts/create' || topic === 'checkouts/update') {
+      // Treat checkout events as "cart_abandoned" candidate WITH email so da možemo odmah okinuti automatiku
+      let customerEmail = extractEmail(payload) || null;
+      if (!customerEmail) {
+        // Fallback: pokušaj povući email preko Admin API koristeći checkout token
+        const token = payload?.token || payload?.cart_token || payload?.id || null;
+        try {
+          const fetched = await fetchEmailFromShopifyCheckout(shopDomain, token, userId);
+          if (fetched) customerEmail = fetched;
+        } catch (_) {}
+      }
+      eventType = 'cart_abandoned';
+      eventData = {
+        customerEmail,
+        customerName: payload?.customer?.first_name || payload?.billing_address?.first_name || 'Customer',
+        items: (payload?.line_items || []).map(item => ({
+          name: item.title,
+          quantity: item.quantity,
+          price: item.price,
+        })),
+        token: payload?.token || payload?.cart_token || payload?.id,
+        currency: payload?.currency,
+        totalPrice: payload?.total_price || payload?.subtotal_price,
+        platform: 'shopify',
+        shopDomain,
+        source: 'shopify',
+      };
     } else if (topic === 'orders/create') {
       eventType = 'order_created';
       eventData = {
@@ -220,16 +247,11 @@ export default async function handler(req, res) {
       });
     }
 
-    // Trigger automation (async, don't wait) - but only for events that should send immediately.
-    // Abandoned carts should be processed by the CRON after a delay, not immediately on add-to-cart.
-    // Send immediately for:
-    // - checkouts/create (has customer email, user reached checkout)
-    // - any other non-cart_abandoned events
-    // Do NOT send immediately for carts/update (no email) → handled later by CRON.
-    const t = String(topic || '').toLowerCase();
-    const immediateCheckout = (t === 'checkouts/create' || t === 'checkouts/update') && !!(eventData?.customerEmail);
-    const shouldTriggerImmediately =
-      immediateCheckout || eventType !== 'cart_abandoned';
+    // Trigger automation:
+    // - For cart_abandoned: trigger immediately ONLY if imamo customerEmail (real‑time iskustvo)
+    // - For ostale evente: uvijek odmah
+    const hasEmail = !!eventData?.customerEmail;
+    const shouldTriggerImmediately = eventType !== 'cart_abandoned' ? true : hasEmail;
     if (shouldTriggerImmediately) {
       triggerAutomation(userId, eventId, eventType, eventData).catch(err => {
         console.error('[Shopify Webhook] Automation trigger error:', err);
@@ -259,11 +281,25 @@ export default async function handler(req, res) {
 // Trigger automation flow
 async function triggerAutomation(userId, eventId, eventType, eventData) {
   try {
-    const response = await fetch(`${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/api/automation/trigger`, {
+    const baseUrl =
+      process.env.INTERNAL_API_BASE_URL ||
+      process.env.NEXT_PUBLIC_APP_URL ||
+      (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'http://localhost:3000');
+
+    const headers = {
+      'Content-Type': 'application/json',
+    };
+    const bypass =
+      process.env.VERCEL_PROTECTION_BYPASS ||
+      process.env.PROTECTION_BYPASS_TOKEN ||
+      process.env.VERCEL_BYPASS_TOKEN;
+    if (bypass) {
+      headers['x-vercel-protection-bypass'] = bypass;
+    }
+
+    const response = await fetch(`${baseUrl}/api/automation/trigger`, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
+      headers,
       body: JSON.stringify({
         userId,
         eventId,

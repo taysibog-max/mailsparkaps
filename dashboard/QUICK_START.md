@@ -45,6 +45,13 @@ OPENAI_MODEL=gpt-4o-mini
 WEBHOOK_SECRET=generate_random_string_here
 CRON_SECRET=generate_another_random_string
 
+# Internal API calls (webhooks/cron → /api/automation/trigger)
+# Provide a stable base URL if you want (optional)
+INTERNAL_API_BASE_URL=
+
+# If Vercel Password Protection is ON, add the bypass token
+VERCEL_PROTECTION_BYPASS=
+
 # App
 NEXT_PUBLIC_APP_URL=http://localhost:3000
 ```
