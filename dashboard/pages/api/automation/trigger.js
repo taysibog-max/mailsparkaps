@@ -34,6 +34,7 @@ export default async function handler(req, res) {
   try {
     const DEBUG = String(process.env.AUTOMATION_DEBUG || '').trim() === '1';
     const { userId, eventId, eventType, eventData } = req.body;
+    let data = eventData;
     let resolvedUserId = userId;
 
     if (!userId || !eventId || !eventType) {
@@ -53,9 +54,9 @@ export default async function handler(req, res) {
         const now = Date.now();
         const lastTs = Number(ev?.abandonedAt || ev?.lastAt || ev?.createdAt || 0);
         const ageMs = now - lastTs;
-        const isMarked = ev?.isAbandoned === true || eventData?.isAbandoned === true;
+        const isMarked = ev?.isAbandoned === true || data?.isAbandoned === true;
         const recovered = ev?.recovered === true;
-        const hasEmail = Boolean(ev?.customerEmail || eventData?.customerEmail);
+        const hasEmail = Boolean(ev?.customerEmail || data?.customerEmail);
         const eligible = hasEmail && !recovered && (isMarked || ageMs >= ABANDONED_GRACE_MS);
         if (!eligible) {
           console.log('[Automation] Skip cart_abandoned: eligible=false', {
@@ -63,11 +64,11 @@ export default async function handler(req, res) {
           });
           return res.status(200).json({ success: true, message: 'Skipped by grace/recovery rules' });
         }
-        // Prefer stored email and enrich eventData
-        eventData = {
-          ...eventData,
+        // Prefer stored email and enrich data
+        data = {
+          ...data,
           ...ev,
-          customerEmail: ev?.customerEmail || eventData?.customerEmail,
+          customerEmail: ev?.customerEmail || data?.customerEmail,
           isAbandoned: true,
         };
       } catch (e) {
@@ -281,7 +282,7 @@ export default async function handler(req, res) {
     }
 
     // Validate customer email
-    const customerEmail = eventData.customerEmail;
+    const customerEmail = data.customerEmail;
     if (!customerEmail) {
       console.error('[Automation] Missing customer email');
       return res.status(400).json({ error: 'Customer email is required' });
@@ -296,12 +297,12 @@ export default async function handler(req, res) {
       try {
         // Preferred: AI-generated content (if OPENAI_API_KEY is set)
         const ai = await generateEmailContent(campaignType, {
-          customerName: eventData.customerName || 'Valued Customer',
+          customerName: data.customerName || 'Valued Customer',
           customerEmail,
-          cartItems: eventData.items,
-          orderNumber: eventData.orderNumber,
-          productName: eventData.items?.[0]?.name,
-          lastVisit: eventData.createdAt ? new Date(eventData.createdAt).toLocaleDateString() : null,
+          cartItems: data.items,
+          orderNumber: data.orderNumber,
+          productName: data.items?.[0]?.name,
+          lastVisit: data.createdAt ? new Date(data.createdAt).toLocaleDateString() : null,
         });
         subject = ai.subject || subject || 'You left items in your cart';
         htmlContent = ai.htmlContent;
@@ -310,13 +311,13 @@ export default async function handler(req, res) {
         console.warn('[Automation] AI generation failed or not configured. Using fallback content:', aiErr?.message || aiErr);
         if (campaignType === 'abandoned_cart') {
           subject = subject || 'You left items in your cart';
-          const itemsHtml = (eventData.items || [])
+          const itemsHtml = (data.items || [])
             .map((it) => `<li>${(it?.name || 'Item')} × ${it?.quantity || 1} — ${it?.price || ''}</li>`)
             .join('');
           htmlContent = `
             <div style="font-family: Arial, sans-serif; line-height:1.6; color:#111">
               <h2>Complete your purchase</h2>
-              <p>Hi${eventData.customerName ? ' ' + eventData.customerName : ''}, you left these items in your cart:</p>
+              <p>Hi${data.customerName ? ' ' + data.customerName : ''}, you left these items in your cart:</p>
               <ul>${itemsHtml || '<li>Your selected products</li>'}</ul>
               <p><a href="#" style="background:#4f46e5;color:#fff;padding:10px 16px;border-radius:6px;text-decoration:none;display:inline-block">Return to checkout</a></p>
               <p style="color:#555">If you have any questions, just reply to this email.</p>
@@ -324,10 +325,10 @@ export default async function handler(req, res) {
           `;
         } else if (campaignType === 'post_purchase') {
           subject = subject || 'Thank you for your purchase!';
-          htmlContent = `<p>Hi${eventData.customerName ? ' ' + eventData.customerName : ''}, thanks for your order${eventData.orderNumber ? ' #' + eventData.orderNumber : ''}.</p>`;
+          htmlContent = `<p>Hi${data.customerName ? ' ' + data.customerName : ''}, thanks for your order${data.orderNumber ? ' #' + data.orderNumber : ''}.</p>`;
         } else if (campaignType === 'customer_created') {
           subject = subject || 'Welcome!';
-          htmlContent = `<p>Welcome${eventData.customerName ? ' ' + eventData.customerName : ''}! We’re glad you’re here.</p>`;
+          htmlContent = `<p>Welcome${data.customerName ? ' ' + data.customerName : ''}! We’re glad you’re here.</p>`;
         } else {
           subject = subject || 'Hello from our store';
           htmlContent = `<p>We have an update for you.</p>`;
