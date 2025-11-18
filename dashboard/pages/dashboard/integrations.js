@@ -541,7 +541,7 @@ function ShopifyCard(){
     // Bake absolute API URL into the pixel code (must not rely on Shopify domain)
     const base = (typeof window !== 'undefined' ? window.location.origin : '');
     const endpoint = `${base}/api/pixel`;
-    return \`// MailSpark Pixel
+    return `// MailSpark Pixel
 const TRACK_URL='${endpoint}';
 const JWT='${token}';
 const LAST={token:null,email:null};
@@ -550,10 +550,11 @@ analytics.subscribe('checkout_contact_information_submitted',(event)=>{const ch=
 // Fallback: ponekad email dobijemo tek na shipping koraku
 analytics.subscribe('checkout_shipping_info_submitted',(event)=>{const ch=event?.data?.checkout||{};const em=ch?.email||ch?.contactEmail||null;const t=ch?.token||ch?.id||null;if(em){LAST.token=t||LAST.token;LAST.email=em||LAST.email;post('contact_info',{checkoutToken:t,email:em});}});
 analytics.subscribe('checkout_completed',(event)=>{const ch=event?.data?.checkout||{};post('completed',{checkoutToken:ch?.token||ch?.id||null,orderId:event?.data?.order?.id||null});});
-// Označi kao napušteno SAMO kada korisnik stvarno napušta stranicu (unload)
-const sendAbandoned=()=>{if(LAST.email||LAST.token){post('abandoned',{checkoutToken:LAST.token||null,email:LAST.email||null});}};
-// Samo pravo napuštanje/close (bez slanja na tab switch)
-window.addEventListener('beforeunload',sendAbandoned);\`;
+// Označi kao napušteno SAMO kada korisnik stvarno napušta stranicu (unload/pagehide).
+const sendAbandoned=()=>{try{if(!(LAST.email||LAST.token))return;const payload=JSON.stringify({type:'abandoned',checkoutToken:LAST.token||null,email:LAST.email||null});if(navigator.sendBeacon){try{const blob=new Blob([payload],{type:'application/json'});navigator.sendBeacon(TRACK_URL,blob);}catch(_){}}else{post('abandoned',{checkoutToken:LAST.token||null,email:LAST.email||null});}}catch(_){}}; 
+// Pravo napuštanje/close + navigacija (Safari/SPA)
+window.addEventListener('beforeunload',sendAbandoned);
+window.addEventListener('pagehide',sendAbandoned);`;
   }
 
   async function selectMode(mode){
