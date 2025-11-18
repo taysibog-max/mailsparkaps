@@ -96,6 +96,29 @@ export default async function handler(req, res) {
         updates['customerEmail'] = email;
       }
       await baseRef.update(updates);
+      // Read final event payload and trigger automation immediately (no CRON dependency)
+      try {
+        const snap = await baseRef.get();
+        const ev = snap.exists() ? snap.val() : null;
+        if (ev && (ev.customerEmail || email)) {
+          const baseUrl =
+            process.env.INTERNAL_API_BASE_URL ||
+            process.env.NEXT_PUBLIC_APP_URL ||
+            (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : '');
+          if (baseUrl) {
+            await fetch(`${baseUrl}/api/automation/trigger`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                userId,
+                eventId,
+                eventType: 'cart_abandoned',
+                eventData: { ...(ev || {}), isAbandoned: true },
+              }),
+            }).catch(()=>{});
+          }
+        }
+      } catch (_) {}
       return res.status(200).json({ success: true });
     }
 
