@@ -105,7 +105,7 @@ export default async function handler(req, res) {
             process.env.INTERNAL_API_BASE_URL ||
             process.env.NEXT_PUBLIC_APP_URL ||
             (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : '');
-          if (baseUrl) {
+          if (baseUrl && process.env.PIXEL_IMMEDIATE === '1') {
             const headers = { 'Content-Type': 'application/json' };
             const bypass =
               process.env.VERCEL_PROTECTION_BYPASS ||

@@ -83,6 +83,29 @@ export default async function handler(req, res) {
       });
     }
 
+    // Enforce grace/eligibility for cart_abandoned (send only after 5 minutes)
+    if (campaignType === 'abandoned_cart') {
+      try {
+        const ref = adminDatabase.ref(`events/${resolvedUserId}/cart_abandoned/${eventId}`);
+        const snap = await ref.once('value');
+        const ev = snap.exists() ? snap.val() : {};
+        const now = Date.now();
+        const lastTs = Number(ev?.abandonedAt || ev?.lastAt || ev?.createdAt || 0);
+        const ageMs = now - lastTs;
+        const recovered = ev?.recovered === true;
+        const already = ev?.emailSent === true || Boolean(ev?.processedAt);
+        const hasEmail = Boolean(ev?.customerEmail || eventData?.customerEmail);
+        const eligible = hasEmail && !recovered && !already && ageMs >= (5 * 60 * 1000);
+        if (!eligible) {
+          return res.status(200).json({
+            success: true,
+            skipped: true,
+            reason: { recovered, already, hasEmail, ageMs },
+          });
+        }
+      } catch (_) {}
+    }
+
     // Get active campaign for this type
     let campaign = await getActiveCampaign(adminDatabase, resolvedUserId, campaignType);
     if (!campaign) {
