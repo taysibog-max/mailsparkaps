@@ -31,12 +31,27 @@
  *    </div>
  */
 
-(function(window) {
+(function(window, document) {
   'use strict';
+
+  function getScriptOriginAndJwt() {
+    try {
+      const el = document.currentScript || (function() {
+        const scripts = document.getElementsByTagName('script');
+        return scripts[scripts.length - 1];
+      })();
+      const url = new URL(el.src);
+      const origin = url.origin;
+      const jwt = url.searchParams.get('jwt') || '';
+      return { origin, jwt };
+    } catch (_) {
+      return { origin: (typeof window !== 'undefined' ? window.location.origin : ''), jwt: '' };
+    }
+  }
 
   const CartTracker = {
     config: {
-      apiUrl: 'http://localhost:3001/api/cart-tracking',
+      apiUrl: '',
       trackingId: null,
       trackingEnabled: true,
       debugMode: false,
@@ -68,6 +83,11 @@
      * Inicijalizacija tracker-a
      */
     init(options = {}) {
+      const { origin, jwt } = getScriptOriginAndJwt();
+      if (!options.apiUrl) {
+        this.config.apiUrl = origin + '/api/pixel';
+      }
+      this.jwt = jwt || null;
       // Merge config
       Object.assign(this.config, options);
 
@@ -351,11 +371,11 @@
       try {
         this.log('📤 Šaljem podatke na backend...', payload);
 
+        const headers = { 'Content-Type': 'application/json' };
+        if (this.jwt) headers['Authorization'] = 'Bearer ' + this.jwt;
         const response = await fetch(this.config.apiUrl, {
           method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
+          headers,
           body: JSON.stringify(payload),
         });
 
@@ -415,7 +435,7 @@
             try {
               fetch(this.config.apiUrl, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: (this.jwt ? { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + this.jwt } : { 'Content-Type': 'application/json' }),
                 body: payload,
                 keepalive: true,
                 mode: 'cors',
@@ -430,7 +450,7 @@
           try {
             fetch(this.config.apiUrl, {
               method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
+              headers: (this.jwt ? { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + this.jwt } : { 'Content-Type': 'application/json' }),
               body: payload,
               keepalive: true,
               mode: 'cors',
@@ -525,17 +545,17 @@
   // Export to global scope
   window.CartTracker = CartTracker;
 
-  // Auto-init ako postoji data-cart-tracker-auto-init
-  if (document.querySelector('[data-cart-tracker-auto-init]')) {
-    document.addEventListener('DOMContentLoaded', () => {
+  // Auto-init – koristi query jwt i naš host za /api/pixel
+  document.addEventListener('DOMContentLoaded', () => {
+    try {
       const element = document.querySelector('[data-cart-tracker-auto-init]');
-      const apiUrl = element.getAttribute('data-api-url') || 'http://localhost:3001/api/cart-tracking';
-      const trackingId = element.getAttribute('data-tracking-id');
-      const debugMode = element.getAttribute('data-debug') === 'true';
+      const trackingId = element ? element.getAttribute('data-tracking-id') : null;
+      const debugMode = element ? (element.getAttribute('data-debug') === 'true') : false;
+      CartTracker.init({ trackingId, debugMode });
+    } catch (_) {
+      CartTracker.init({});
+    }
+  });
 
-      CartTracker.init({ apiUrl, trackingId, debugMode });
-    });
-  }
-
-})(window);
+})(window, document);
 

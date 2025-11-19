@@ -17,8 +17,22 @@ async function registerWebhooks(shop, accessToken, baseAppUrl) {
   }
 }
 
-async function installScriptTag(shop, accessToken, baseAppUrl) {
-  const src = `${baseAppUrl}/cart-tracker.js`;
+function signUid(uid) {
+  try {
+    const secret = process.env.SERVER_JWT_SECRET || 'dev_local_secret_change_me';
+    const base = Buffer.from(String(uid || ''), 'utf8').toString('base64url');
+    const crypto = require('crypto');
+    const sig = crypto.createHmac('sha256', secret).update(base).digest('base64url');
+    return `${base}.${sig}`;
+  } catch (_) {
+    return '';
+  }
+}
+
+async function installScriptTag(shop, accessToken, baseAppUrl, uid) {
+  // Include signed JWT in query so the tracker can authorize requests to /api/pixel
+  const jwt = signUid(uid);
+  const src = `${baseAppUrl}/cart-tracker.js${jwt ? `?jwt=${jwt}` : ''}`;
   await fetch(`https://${shop}/admin/api/2024-07/script_tags.json`, {
     method: 'POST',
     headers: {
@@ -80,7 +94,7 @@ export default async function handler(req, res) {
     }
 
     if (normalizedMode === 'FAST' && baseAppUrl) {
-      await installScriptTag(shop, accessToken, baseAppUrl);
+      await installScriptTag(shop, accessToken, baseAppUrl, uid);
     } else if (normalizedMode === 'SILENT' && baseAppUrl) {
       await removeScriptTags(shop, accessToken, baseAppUrl);
     }
