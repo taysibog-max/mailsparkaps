@@ -54,15 +54,15 @@ export default async function handler(req, res) {
     const baseRef = adminDatabase.ref(`events/${userId}/cart_abandoned/${eventId}`);
 
     if (type === 'contact_info') {
-      // Must have email and at least one item to be valid
+      // Accept even without items; some themes/pixels don't send lineItems here
       if (!email) {
         return res.status(200).json({ success: true, ignored: 'missing_email' });
       }
       const normalizedItems = Array.isArray(lineItems) ? lineItems : [];
-      if (!normalizedItems.length) {
-        return res.status(200).json({ success: true, ignored: 'no_items' });
-      }
-      // Upsert event with email and items
+      // Upsert event with email and optional items
+      const now = Date.now();
+      const snapshot = await baseRef.get().catch(() => null);
+      const exists = snapshot && snapshot.exists();
       const payload = {
         eventId,
         eventType: 'cart_abandoned',
@@ -72,8 +72,8 @@ export default async function handler(req, res) {
         url: url || null,
         source: 'pixel',
         topic: 'contact_info',
-        createdAt: Date.now(),
-        lastAt: Date.now(),
+        createdAt: exists ? (snapshot.val()?.createdAt || now) : now,
+        lastAt: now,
         isAbandoned: false,
         processedAt: null,
         emailSent: false,
