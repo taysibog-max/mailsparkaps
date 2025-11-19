@@ -23,9 +23,6 @@ const EVENT_TO_CAMPAIGN_MAP = {
   customer_created: 'welcome_email',
 };
 
-// Grace window for abandoned carts (ms)
-const ABANDONED_GRACE_MS = 90 * 1000;
-
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
@@ -34,7 +31,6 @@ export default async function handler(req, res) {
   try {
     const DEBUG = String(process.env.AUTOMATION_DEBUG || '').trim() === '1';
     const { userId, eventId, eventType, eventData } = req.body;
-    let data = eventData;
     let resolvedUserId = userId;
 
     if (!userId || !eventId || !eventType) {
@@ -44,37 +40,6 @@ export default async function handler(req, res) {
     }
 
     console.log('[Automation] Processing event:', eventType, 'for user:', resolvedUserId);
-
-    // Hard guard + grace window for cart_abandoned
-    if (eventType === 'cart_abandoned') {
-      try {
-        const ref = adminDatabase.ref(`events/${resolvedUserId}/cart_abandoned/${eventId}`);
-        const snap = await ref.once('value');
-        const ev = snap.exists() ? snap.val() : {};
-        const now = Date.now();
-        const lastTs = Number(ev?.abandonedAt || ev?.lastAt || ev?.createdAt || 0);
-        const ageMs = now - lastTs;
-        const isMarked = ev?.isAbandoned === true || data?.isAbandoned === true;
-        const recovered = ev?.recovered === true;
-        const hasEmail = Boolean(ev?.customerEmail || data?.customerEmail);
-        const eligible = hasEmail && !recovered && (isMarked || ageMs >= ABANDONED_GRACE_MS);
-        if (!eligible) {
-          console.log('[Automation] Skip cart_abandoned: eligible=false', {
-            recovered, hasEmail, isMarked, ageMs,
-          });
-          return res.status(200).json({ success: true, message: 'Skipped by grace/recovery rules' });
-        }
-        // Prefer stored email and enrich data
-        data = {
-          ...data,
-          ...ev,
-          customerEmail: ev?.customerEmail || data?.customerEmail,
-          isAbandoned: true,
-        };
-      } catch (e) {
-        console.warn('[Automation] cart_abandoned eligibility check failed:', e?.message || e);
-      }
-    }
 
     // Get corresponding campaign type
     const campaignType = EVENT_TO_CAMPAIGN_MAP[eventType];
@@ -95,23 +60,6 @@ export default async function handler(req, res) {
         message: 'Email already sent (duplicate prevented)',
       });
     }
-
-    // Re-read current event to ensure not recovered/processed in the meantime (race guard)
-    try {
-      const liveRef = adminDatabase.ref(`events/${resolvedUserId}/${eventType}/${eventId}`);
-      const liveSnap = await liveRef.once('value');
-      if (liveSnap.exists()) {
-        const live = liveSnap.val() || {};
-        if (live.emailSent || live.processedAt) {
-          console.log('[Automation] Skip: already processed by another worker');
-          return res.status(200).json({ success: true, message: 'Already processed' });
-        }
-        if (eventType === 'cart_abandoned' && live.recovered === true) {
-          console.log('[Automation] Skip: checkout recovered, not sending abandoned email');
-          return res.status(200).json({ success: true, message: 'Recovered – skip sending' });
-        }
-      }
-    } catch (_) {}
 
     // Get active campaign for this type
     let campaign = await getActiveCampaign(adminDatabase, resolvedUserId, campaignType);
@@ -282,7 +230,7 @@ export default async function handler(req, res) {
     }
 
     // Validate customer email
-    const customerEmail = data.customerEmail;
+    const customerEmail = eventData.customerEmail;
     if (!customerEmail) {
       console.error('[Automation] Missing customer email');
       return res.status(400).json({ error: 'Customer email is required' });
@@ -297,12 +245,12 @@ export default async function handler(req, res) {
       try {
         // Preferred: AI-generated content (if OPENAI_API_KEY is set)
         const ai = await generateEmailContent(campaignType, {
-          customerName: data.customerName || 'Valued Customer',
+          customerName: eventData.customerName || 'Valued Customer',
           customerEmail,
-          cartItems: data.items,
-          orderNumber: data.orderNumber,
-          productName: data.items?.[0]?.name,
-          lastVisit: data.createdAt ? new Date(data.createdAt).toLocaleDateString() : null,
+          cartItems: eventData.items,
+          orderNumber: eventData.orderNumber,
+          productName: eventData.items?.[0]?.name,
+          lastVisit: eventData.createdAt ? new Date(eventData.createdAt).toLocaleDateString() : null,
         });
         subject = ai.subject || subject || 'You left items in your cart';
         htmlContent = ai.htmlContent;
@@ -311,13 +259,13 @@ export default async function handler(req, res) {
         console.warn('[Automation] AI generation failed or not configured. Using fallback content:', aiErr?.message || aiErr);
         if (campaignType === 'abandoned_cart') {
           subject = subject || 'You left items in your cart';
-          const itemsHtml = (data.items || [])
+          const itemsHtml = (eventData.items || [])
             .map((it) => `<li>${(it?.name || 'Item')} × ${it?.quantity || 1} — ${it?.price || ''}</li>`)
             .join('');
           htmlContent = `
             <div style="font-family: Arial, sans-serif; line-height:1.6; color:#111">
               <h2>Complete your purchase</h2>
-              <p>Hi${data.customerName ? ' ' + data.customerName : ''}, you left these items in your cart:</p>
+              <p>Hi${eventData.customerName ? ' ' + eventData.customerName : ''}, you left these items in your cart:</p>
               <ul>${itemsHtml || '<li>Your selected products</li>'}</ul>
               <p><a href="#" style="background:#4f46e5;color:#fff;padding:10px 16px;border-radius:6px;text-decoration:none;display:inline-block">Return to checkout</a></p>
               <p style="color:#555">If you have any questions, just reply to this email.</p>
@@ -325,10 +273,10 @@ export default async function handler(req, res) {
           `;
         } else if (campaignType === 'post_purchase') {
           subject = subject || 'Thank you for your purchase!';
-          htmlContent = `<p>Hi${data.customerName ? ' ' + data.customerName : ''}, thanks for your order${data.orderNumber ? ' #' + data.orderNumber : ''}.</p>`;
+          htmlContent = `<p>Hi${eventData.customerName ? ' ' + eventData.customerName : ''}, thanks for your order${eventData.orderNumber ? ' #' + eventData.orderNumber : ''}.</p>`;
         } else if (campaignType === 'customer_created') {
           subject = subject || 'Welcome!';
-          htmlContent = `<p>Welcome${data.customerName ? ' ' + data.customerName : ''}! We’re glad you’re here.</p>`;
+          htmlContent = `<p>Welcome${eventData.customerName ? ' ' + eventData.customerName : ''}! We’re glad you’re here.</p>`;
         } else {
           subject = subject || 'Hello from our store';
           htmlContent = `<p>We have an update for you.</p>`;
