@@ -29,12 +29,26 @@ export default async function handler(req, res) {
   }
 
   try {
-    // Allow only Vercel Cron or requests with CRON_SECRET (or manual=1 for testing)
+    // Allow only Vercel Cron, CRON_SECRET, or a valid signed user token (JWT used by pixel)
     const isCron = Boolean(req.headers['x-vercel-cron']);
     const isManual = String(req.query.manual || '').toLowerCase() === '1' || String(req.query.manual || '').toLowerCase() === 'true';
     const bearer = (req.headers.authorization || '').replace('Bearer ', '');
     const cronSecret = process.env.CRON_SECRET || '';
-    if (!(isCron || isManual || (cronSecret && bearer === cronSecret))) {
+    // Verify signed uid: base64url(uid).hmac(uid, SERVER_JWT_SECRET)
+    const allowSignedUid = (() => {
+      try {
+        if (!bearer || bearer === cronSecret) return false;
+        const [base, sig] = bearer.split('.');
+        if (!base || !sig) return false;
+        const crypto = require('crypto');
+        const secret = process.env.SERVER_JWT_SECRET || 'dev_local_secret_change_me';
+        const check = crypto.createHmac('sha256', secret).update(base).digest('base64url');
+        return check === sig;
+      } catch {
+        return false;
+      }
+    })();
+    if (!(isCron || isManual || (cronSecret && bearer === cronSecret) || allowSignedUid)) {
       return res.status(403).json({ success: false, error: 'Forbidden' });
     }
     const DEBUG = String(process.env.AUTOMATION_DEBUG || '').trim() === '1';

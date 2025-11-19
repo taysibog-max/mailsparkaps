@@ -112,6 +112,9 @@ export default async function handler(req, res) {
               process.env.PROTECTION_BYPASS_TOKEN ||
               process.env.VERCEL_BYPASS_TOKEN;
             if (bypass) headers['x-vercel-protection-bypass'] = bypass;
+            // Forward the same pixel Authorization (signed uid) so trigger can authorize
+            const fwd = req.headers['authorization'] || req.headers['Authorization'];
+            if (fwd) headers['Authorization'] = fwd;
             await fetch(`${baseUrl}/api/automation/trigger`, {
               method: 'POST',
               headers,
