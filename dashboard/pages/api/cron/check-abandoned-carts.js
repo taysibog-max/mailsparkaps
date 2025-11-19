@@ -102,6 +102,10 @@ export default async function handler(req, res) {
             if (bypass) {
               headers['x-vercel-protection-bypass'] = bypass;
             }
+            // Authorize internal automation trigger (matches guard in /api/automation/trigger)
+            if (process.env.CRON_SECRET) {
+              headers['Authorization'] = `Bearer ${process.env.CRON_SECRET}`;
+            }
             const response = await fetch(`${baseUrl}/api/automation/trigger`, {
               method: 'POST',
               headers,
