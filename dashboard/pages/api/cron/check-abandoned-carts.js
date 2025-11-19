@@ -106,7 +106,7 @@ export default async function handler(req, res) {
             if (process.env.CRON_SECRET) {
               headers['Authorization'] = `Bearer ${process.env.CRON_SECRET}`;
             }
-            const response = await fetch(`${baseUrl}/api/automation/trigger`, {
+            const response = await fetch(`${baseUrl}/api/automation/trigger?manual=1`, {
               method: 'POST',
               headers,
               body: JSON.stringify({
