@@ -10,8 +10,8 @@
 import { adminDatabase } from '../../../lib/firebaseAdmin';
 
 // Grace window before sending (prevents race with successful completion)
-// Set to 5 minutes as requested
-const CART_ABANDONED_THRESHOLD = 5 * 60 * 1000; // 5 minutes
+// 1 minute threshold
+const CART_ABANDONED_THRESHOLD = 60 * 1000; // 1 minute
 
 export default async function handler(req, res) {
   // Allow GET for manual trigger, but verify cron secret for security

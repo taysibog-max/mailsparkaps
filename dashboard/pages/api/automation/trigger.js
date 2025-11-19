@@ -95,7 +95,7 @@ export default async function handler(req, res) {
         const recovered = ev?.recovered === true;
         const already = ev?.emailSent === true || Boolean(ev?.processedAt);
         const hasEmail = Boolean(ev?.customerEmail || eventData?.customerEmail);
-        const eligible = hasEmail && !recovered && !already && ageMs >= (5 * 60 * 1000);
+        const eligible = hasEmail && !recovered && !already && ageMs >= (60 * 1000);
         if (!eligible) {
           return res.status(200).json({
             success: true,
