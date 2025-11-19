@@ -29,6 +29,14 @@ export default async function handler(req, res) {
   }
 
   try {
+    // Allow only Vercel Cron or requests with CRON_SECRET (or manual=1 for testing)
+    const isCron = Boolean(req.headers['x-vercel-cron']);
+    const isManual = String(req.query.manual || '').toLowerCase() === '1' || String(req.query.manual || '').toLowerCase() === 'true';
+    const bearer = (req.headers.authorization || '').replace('Bearer ', '');
+    const cronSecret = process.env.CRON_SECRET || '';
+    if (!(isCron || isManual || (cronSecret && bearer === cronSecret))) {
+      return res.status(403).json({ success: false, error: 'Forbidden' });
+    }
     const DEBUG = String(process.env.AUTOMATION_DEBUG || '').trim() === '1';
     const { userId, eventId, eventType, eventData } = req.body;
     let resolvedUserId = userId;
