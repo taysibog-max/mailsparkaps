@@ -2,6 +2,7 @@ import type { NextApiRequest, NextApiResponse } from 'next';
 import { exchangeCodeForToken, normalizeShopDomain, verifyState, encryptAccessToken, verifyOAuthHmac } from '../../../lib/shopify';
 import { adminDatabase } from '../../../lib/firebaseAdmin';
 import { saveShopifyStore } from '../../../lib/shopifyStore';
+import { registerShopifyWebhooks } from '../../../lib/shopifyWebhooks';
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== 'GET') return res.status(405).json({ error: 'Method not allowed' });
@@ -35,17 +36,13 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       await adminDatabase.ref(`storeOwners/${underscoreKey}`).set(uid);
     } catch (_) {}
 
-    // Optionally auto-register webhooks
+    // Auto-register webhooks (idempotent)
     try {
       const base =
         process.env.NEXT_PUBLIC_APP_URL ||
         (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : '');
       if (base) {
-        await fetch(`${base}/api/shopify/registerWebhooks`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ shopDomain, storeId }),
-        }).catch(()=>{});
+        await registerShopifyWebhooks(shopDomain, accessToken, base);
       }
     } catch (_) {}
 
