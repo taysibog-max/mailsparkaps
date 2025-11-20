@@ -1,4 +1,4 @@
-import { getFirestore } from './firestoreAdmin';
+import { getFirestore as getAdminFirestore } from './firestoreAdmin';
 
 export interface SavedShopifyStore {
   storeType: 'shopify';
@@ -10,7 +10,7 @@ export interface SavedShopifyStore {
 }
 
 export async function saveShopifyStore(userId: string, shopDomain: string, accessToken: string): Promise<string> {
-  const db = getFirestore();
+  const db = getAdminFirestore();
   const payload: SavedShopifyStore = {
     storeType: 'shopify',
     shopDomain,
@@ -24,7 +24,7 @@ export async function saveShopifyStore(userId: string, shopDomain: string, acces
 }
 
 export async function updateShopifyStore(storeId: string) {
-  const db = getFirestore();
+  const db = getAdminFirestore();
   await db.collection('stores').doc(storeId).set({ updatedAt: new Date() }, { merge: true });
 }
 
