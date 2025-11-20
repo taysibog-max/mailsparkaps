@@ -50,6 +50,30 @@ async function purgeRealtimeDb() {
       const allUsers = usersSnap.val() || {};
       const userIds = Object.keys(allUsers);
       for (const uid of userIds) {
+        // Clean stray Shopify fields directly under users/{uid}/integrations (legacy shape)
+        try {
+          const integRootSnap = await db.ref(`users/${uid}/integrations`).get();
+          if (integRootSnap.exists()) {
+            const integRoot = integRootSnap.val() || {};
+            const updates = {};
+            // If root has platform 'shopify', drop known fields that belonged to shopify payload
+            if (String(integRoot.platform || '').toLowerCase() === 'shopify') {
+              ['platform','shop','mode','connectedAt','contactsCount','lastSynced','lastSyncAt','accessToken']
+                .forEach((k) => { updates[`users/${uid}/integrations/${k}`] = null; });
+            }
+            // Also drop any child key that looks like shopify* (defensive)
+            Object.keys(integRoot).forEach((k) => {
+              if (/^shopify/i.test(k)) {
+                updates[`users/${uid}/integrations/${k}`] = null;
+              }
+            });
+            if (Object.keys(updates).length) {
+              await db.ref().update(updates);
+              result.integrations++;
+            }
+          }
+        } catch (_) {}
+
         // Remove integration
         try {
           const integSnap = await db.ref(`users/${uid}/integrations/shopify`).get();
