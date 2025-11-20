@@ -391,326 +391,10 @@ function WooCard(){
 }
 
 function ShopifyCard(){
-  const { connectStore } = useStore();
   const [shop, setShop] = useState('');
   const [accessToken, setAccessToken] = useState('');
-  const [status, setStatus] = useState({ connected:false, lastSyncAt:null });
-  const [busy, setBusy] = useState(false);
   const [showGuide, setShowGuide] = useState(false);
-  const [initialLoading, setInitialLoading] = useState(true);
-  const progressBar = useProgressBar();
-  const [confirmOpen, setConfirmOpen] = useState(false);
   const [showToken, setShowToken] = useState(true);
-  const [err, setErr] = useState('');
-  const [pixelCopied, setPixelCopied] = useState(false);
-  const [userUid, setUserUid] = useState('');
-  const [pixelToken, setPixelToken] = useState('');
-  const [setupMsg, setSetupMsg] = useState('');
-  const [showModeModal, setShowModeModal] = useState(false);
-  const [selectingMode, setSelectingMode] = useState(false);
-  
-  useEffect(()=>{ let unsub;
-    (async()=>{
-      const { db, auth } = getFirebaseApp();
-      const ensure = async (u)=>{
-        if (!u) return;
-        try { setUserUid(u.uid || ''); } catch(_) {}
-        setInitialLoading(true);
-        // Allow forcing the mode chooser via URL param ?forceMode=1
-        try {
-          if (typeof window !== 'undefined') {
-            const usp = new URLSearchParams(window.location.search || '');
-            if (usp.get('forceMode') === '1') {
-              setShowModeModal(true);
-            }
-          }
-        } catch(_) {}
-        // Fetch pixel token (signed) for this user
-        try {
-          const idt = await auth.currentUser?.getIdToken?.(true);
-          if (idt) {
-            const r = await fetch('/api/auth/pixel-token', { headers: { Authorization: `Bearer ${idt}` } });
-            const d = await r.json().catch(()=> ({}));
-            if (d?.token) setPixelToken(d.token);
-          }
-        } catch(_) {}
-        
-        // STEP 1: Provjeri optimizovani keš (24h TTL)
-        const cacheKey = getCacheKey(u.uid, 'shopify');
-        const cachedData = loadFromCache(cacheKey);
-        
-        if (cachedData) {
-          setStatus({ connected: true, lastSyncAt: cachedData.lastSynced||null });
-          setShop(cachedData.shop||'');
-          if (cachedData.accessToken) setAccessToken(cachedData.accessToken);
-          setInitialLoading(false);
-          
-          // U pozadini osvježi
-          setTimeout(async () => {
-            try {
-              const s = await apiGet('/api/integrations/shopify/status');
-              if (s?.store) {
-                const freshData = {
-                  shop: s.store.shop || '',
-                  lastSynced: s.store.lastSynced || s.store.lastSyncAt || s.store.connectedAt || null
-                };
-                setStatus({ connected:true, lastSyncAt: freshData.lastSynced });
-                setShop(freshData.shop);
-                saveToCache(cacheKey, freshData);
-              }
-            } catch(e) {
-              console.error('Background Shopify refresh failed:', e);
-            }
-          }, 100);
-
-          // Ako je integracija povezana, a modal za izbor moda nije postavljen, prikaži ga i u cache grani
-          try {
-            const modeSnap = await get(ref(db, `users/${u.uid}/integrations/shopify/mode`)).catch(()=>null);
-            const mv = modeSnap && modeSnap.exists() ? String(modeSnap.val()||'').toUpperCase() : '';
-            if (!modeSnap || !modeSnap.exists() || (mv !== 'FAST' && mv !== 'SILENT')) {
-              setShowModeModal(true);
-            }
-          } catch(_) {}
-          return;
-        }
-        
-        // STEP 2: Učitaj paralelno
-        const [apiStatus, dbSnapshot, mirrorSnapshot] = await Promise.all([
-          apiGet('/api/integrations/shopify/status').catch(() => null),
-          get(ref(db, `users/${u.uid}/integrations/shopify`)).catch(() => null),
-          get(ref(db, `stores/${u.uid}_shopify`)).catch(() => null)
-        ]);
-        
-        let storeData = null;
-        
-        if (apiStatus?.store) {
-          storeData = {
-            shop: apiStatus.store.shop || '',
-            lastSynced: apiStatus.store.lastSynced || apiStatus.store.lastSyncAt || apiStatus.store.connectedAt || null,
-            accessToken: apiStatus.store.accessToken || ''
-          };
-        } else if (dbSnapshot?.exists()) {
-          const v = dbSnapshot.val();
-          storeData = {
-            shop: v.shop || '',
-            lastSynced: v.lastSynced || v.connectedAt || null,
-            accessToken: v.accessToken || ''
-          };
-        } else if (mirrorSnapshot?.exists()) {
-          const mv = mirrorSnapshot.val();
-          storeData = {
-            shop: mv.shop || '',
-            lastSynced: mv.updatedAt || null,
-            accessToken: mv.accessToken || ''
-          };
-        }
-        
-        if (storeData) {
-          setStatus({ connected:true, lastSyncAt: storeData.lastSynced });
-          setShop(storeData.shop);
-          if (storeData.accessToken) setAccessToken(storeData.accessToken);
-          saveToCache(cacheKey, storeData);
-          // Prompt for mode if not already set
-          try {
-            const modeSnap = await get(ref(db, `users/${u.uid}/integrations/shopify/mode`)).catch(()=>null);
-            const mv = modeSnap && modeSnap.exists() ? String(modeSnap.val()||'').toUpperCase() : '';
-            if (!modeSnap || !modeSnap.exists() || (mv !== 'FAST' && mv !== 'SILENT')) {
-              setShowModeModal(true);
-            }
-          } catch(_) {}
-        }
-        
-        setInitialLoading(false);
-      };
-      
-      try {
-        if (auth.currentUser) { await ensure(auth.currentUser); }
-        else { unsub = auth.onAuthStateChanged(ensure); }
-      } catch(_) {
-        setInitialLoading(false);
-      }
-    })();
-    return ()=>{ if (typeof unsub === 'function') unsub(); };
-  }, []);
-  
-  const isValidShop = (s)=>/^[a-z0-9-]+\.myshopify\.com$/i.test(String(s).trim());
-  const canConnect = isValidShop(shop) && accessToken.trim().length > 20; // basic length guard
-
-  function buildPixelCode(currentToken){
-    const token = currentToken || 'YOUR_PIXEL_TOKEN';
-    // Bake absolute API URL into the pixel code (must not rely on Shopify domain)
-    const base = (typeof window !== 'undefined' ? window.location.origin : '');
-    const endpoint = `${base}/api/pixel`;
-    return `// MailSpark Pixel
-const TRACK_URL='${endpoint}';
-const JWT='${token}';
-const LAST={token:null,email:null};
-function post(type,payload){try{fetch(TRACK_URL,{method:'POST',keepalive:true,headers:{'Content-Type':'application/json','Authorization':'Bearer '+JWT},body:JSON.stringify({type,...payload})});}catch(e){}}
-analytics.subscribe('checkout_contact_information_submitted',(event)=>{const ch=event?.data?.checkout||{};const em=ch?.email||ch?.contactEmail||null;const t=ch?.token||ch?.id||null;LAST.token=t||LAST.token;LAST.email=em||LAST.email;post('contact_info',{checkoutToken:t,email:em,currency:ch?.currencyCode,lineItems:(ch?.lineItems||[]).map(i=>({id:i?.product?.id,variantId:i?.variant?.id,title:i?.title,quantity:i?.quantity,price:i?.price?.amount}))});});
-// Fallback: ponekad email dobijemo tek na shipping koraku
-analytics.subscribe('checkout_shipping_info_submitted',(event)=>{const ch=event?.data?.checkout||{};const em=ch?.email||ch?.contactEmail||null;const t=ch?.token||ch?.id||null;if(em){LAST.token=t||LAST.token;LAST.email=em||LAST.email;post('contact_info',{checkoutToken:t,email:em});}});
-analytics.subscribe('checkout_completed',(event)=>{const ch=event?.data?.checkout||{};post('completed',{checkoutToken:ch?.token||ch?.id||null,orderId:event?.data?.order?.id||null});});
-// Označi kao napušteno SAMO kada korisnik stvarno napušta stranicu (unload/pagehide).
-const sendAbandoned=()=>{try{if(!(LAST.email||LAST.token))return;const payload=JSON.stringify({type:'abandoned',checkoutToken:LAST.token||null,email:LAST.email||null});if(navigator.sendBeacon){try{const blob=new Blob([payload],{type:'application/json'});navigator.sendBeacon(TRACK_URL,blob);}catch(_){}}else{post('abandoned',{checkoutToken:LAST.token||null,email:LAST.email||null});}}catch(_){}}; 
-// Pravo napuštanje/close + navigacija (Safari/SPA)
-window.addEventListener('beforeunload',sendAbandoned);
-// Ako korisnik ode u drugi tab i ostane skriven ≥10s, tretiraj kao napušteno
-let __HIDDEN_TIMER=null;
-document.addEventListener('visibilitychange',()=>{try{if(document.hidden){__HIDDEN_TIMER=setTimeout(()=>{if(document.hidden)sendAbandoned();},10000);}else if(__HIDDEN_TIMER){clearTimeout(__HIDDEN_TIMER);__HIDDEN_TIMER=null;}}catch(_){}})
-window.addEventListener('pagehide',sendAbandoned);`;
-  }
-
-  async function selectMode(mode){
-    try {
-      setSelectingMode(true);
-      const { auth } = getFirebaseApp();
-      const idt = await auth.currentUser?.getIdToken?.(true);
-      if (!idt) throw new Error('Not authenticated');
-      const r = await fetch('/api/integrations/shopify/set-mode', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${idt}` },
-        body: JSON.stringify({ mode })
-      });
-      const d = await r.json().catch(()=>({}));
-      if (!r.ok) throw new Error(d?.error || 'Failed to save mode');
-      setShowModeModal(false);
-    } catch (e) {
-      setErr(e?.message || 'Failed to set mode');
-    } finally {
-      setSelectingMode(false);
-    }
-  }
-
-  function copyPixel(){
-    const code = buildPixelCode(pixelToken);
-    navigator.clipboard.writeText(code).then(()=>{ setPixelCopied(true); setTimeout(()=>setPixelCopied(false), 1500); }).catch(()=>{});
-  }
-
-  function openShopifyNotifications(){
-    try {
-      const domain = String(shop || '').trim();
-      if (!domain) return;
-      const url = `https://${domain}/admin/settings/notifications`;
-      window.open(url, '_blank', 'noopener,noreferrer');
-    } catch(_) {}
-  }
-
-  async function runManualTest(){
-    try {
-      setSetupMsg('Sending test...');
-      const r = await fetch('/api/cron/check-abandoned-carts?manual=true');
-      const d = await r.json().catch(()=> ({}));
-      if (r.ok) setSetupMsg('Test triggered. Check inbox shortly.');
-      else setSetupMsg(`Test failed: ${d?.error||d?.message||'Unknown'}`);
-      setTimeout(()=> setSetupMsg(''), 4000);
-    } catch(e){
-      setSetupMsg('Test failed.');
-      setTimeout(()=> setSetupMsg(''), 3000);
-    }
-  }
-
-  async function connect(){
-    setBusy(true);
-    progressBar.start();
-    
-    try{
-      setErr('');
-      progressBar.update(50);
-      if (!canConnect) throw new Error('Provide valid shop domain and Admin API access token');
-      const r = await apiPost('/api/integrations/shopify/connect', { shop, accessToken });
-      const ls = r?.store?.lastSynced || r?.store?.lastSyncAt || Date.now();
-      
-      progressBar.update(80);
-      setStatus({ connected:true, lastSyncAt: ls });
-      try { await connectStore({ platform:'shopify', shop, lastSynced: ls }); } catch(_) {}
-      
-      // Sačuvaj u optimizovani keš
-      try { 
-        const { auth } = getFirebaseApp(); 
-        const u = auth.currentUser; 
-        if (u) {
-          const cacheKey = getCacheKey(u.uid, 'shopify');
-          saveToCache(cacheKey, { shop, lastSynced: ls, accessToken });
-        }
-      } catch(_) {}
-      
-      progressBar.update(100);
-      progressBar.complete();
-      // Open mode chooser after successful connect
-      setShowModeModal(true);
-    } catch(e){
-      setErr(e?.message||'Failed to connect');
-      progressBar.reset();
-    }
-    finally{ setBusy(false); }
-  }
-  
-  async function syncNow(){
-    setBusy(true);
-    progressBar.start();
-    try{
-      progressBar.update(30);
-      const r = await apiPost('/api/integrations/shopify/sync-contacts', {});
-      const ls = Date.now();
-      setStatus(s => ({ ...s, lastSyncAt: ls }));
-      try { await connectStore({ platform:'shopify', shop, lastSynced: ls }); } catch(_) {}
-      // Sačuvaj kontakte lokalno i osvježi Contacts tab cache
-      try {
-        const emails = Array.isArray(r?.emails) ? r.emails : [];
-        const contacts = emails.map(e => ({ email: String(e).toLowerCase(), sourceStore: 'shopify' }));
-        if (contacts.length) {
-          saveContactsToLocalStorage(contacts, 'shopify');
-          const { auth } = getFirebaseApp();
-          const u = auth.currentUser;
-          if (u) await saveContactsToIndexedDB(u.uid, contacts);
-        }
-      } catch(_) {}
-      progressBar.update(100);
-      progressBar.complete();
-    } catch(_){
-      setErr('Sync failed. Provjerite token i dozvole (read_orders).');
-      progressBar.reset();
-    } finally {
-      setBusy(false);
-    }
-  }
-  
-  async function disconnect(){
-    setConfirmOpen(false); // Zatvori popup
-    setBusy(true);
-    progressBar.start();
-    
-    try{ 
-      // Aesthetic delay + progress
-      progressBar.update(20);
-      await new Promise(r => setTimeout(r, 300));
-      
-      progressBar.update(40);
-      await apiPost('/api/integrations/shopify/disconnect', {}); 
-      
-      progressBar.update(70);
-      await new Promise(r => setTimeout(r, 400));
-      
-      // Obriši keš
-      try { 
-        const { auth } = getFirebaseApp(); 
-        const u = auth.currentUser; 
-        if (u) {
-          const cacheKey = getCacheKey(u.uid, 'shopify');
-          clearCache(cacheKey);
-        }
-      } catch(_) {}
-      
-      progressBar.update(90);
-      setStatus({ connected:false, lastSyncAt:null }); 
-      
-      progressBar.update(100);
-      progressBar.complete();
-    } catch(e){
-      progressBar.reset();
-    }
-    finally{ setBusy(false); }
-  }
   return (
     <motion.div 
       initial={{ opacity: 0, y: 10 }}
@@ -718,65 +402,15 @@ window.addEventListener('pagehide',sendAbandoned);`;
       transition={{ delay: 0.1 }}
       className="rounded-2xl border border-white/10 bg-zinc-950/60 shadow-[0_10px_30px_rgba(0,0,0,0.25)] p-6"
     >
-      {showModeModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-6 bg-black/60 backdrop-blur-sm">
-          <div className="w-full max-w-3xl rounded-2xl border border-white/10 bg-[#0f1117] shadow-2xl">
-            <div className="p-6 border-b border-white/10 flex items-center justify-between">
-              <h3 className="text-xl font-bold text-white">Choose automation mode</h3>
-              <button onClick={()=>setShowModeModal(false)} className="text-neutral-400 hover:text-white">✕</button>
-            </div>
-            <div className="p-6 grid grid-cols-1 md:grid-cols-2 gap-4">
-              <button
-                onClick={()=>selectMode('FAST')}
-                className="text-left rounded-xl border border-emerald-500/30 bg-emerald-500/10 hover:bg-emerald-500/15 p-5 transition shadow-lg"
-                disabled={selectingMode}
-              >
-                <div className="text-emerald-400 font-semibold mb-1">FAST (recommended)</div>
-                <div className="text-sm text-neutral-300">
-                  Real‑time emails. Installs a lightweight ScriptTag to capture email on the cart/drawer and triggers
-                  abandoned cart emails instantly. No theme edits required.
-                </div>
-              </button>
-              <button
-                onClick={()=>selectMode('SILENT')}
-                className="text-left rounded-xl border border-blue-500/30 bg-blue-500/10 hover:bg-blue-500/15 p-5 transition shadow-lg"
-                disabled={selectingMode}
-              >
-                <div className="text-blue-400 font-semibold mb-1">SILENT</div>
-                <div className="text-sm text-neutral-300">
-                  No storefront UI changes. Emails send when Shopify provides the email via webhook (usually after “Continue to shipping”),
-                  with CRON as fallback.
-                </div>
-              </button>
-            </div>
-            <div className="p-5 border-t border-white/10 text-xs text-neutral-400">
-              You can change the mode later in settings.
-            </div>
-          </div>
-        </div>
-      )}
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-3">
           <ShopifyIcon />
           <div className="text-lg font-semibold">Shopify</div>
-          {initialLoading && <LoadingSpinner size="sm" />}
         </div>
         <div className="flex items-center gap-2">
           <button type="button" onClick={()=>setShowGuide(s=>!s)} className="p-1.5 rounded-md border border-white/10 hover:bg-white/5" title="How to connect">
             <HelpCircle className="h-4 w-4 text-neutral-300" />
           </button>
-          {!initialLoading && <StatusPill connected={status.connected} />}
-          {/* Always allow opening the mode chooser manually */}
-          {status.connected && (
-            <button
-              type="button"
-              onClick={()=>setShowModeModal(true)}
-              className="ml-2 px-3 py-1.5 rounded-md text-xs bg-gradient-to-r from-emerald-500 to-teal-600 text-white shadow hover:opacity-95"
-              title="Choose FAST or SILENT mode"
-            >
-              Choose Mode
-            </button>
-          )}
         </div>
       </div>
       {showGuide && (
@@ -785,11 +419,11 @@ window.addEventListener('pagehide',sendAbandoned);`;
           animate={{ opacity: 1, height: 'auto' }}
           className="mb-4 text-sm text-neutral-300 rounded-lg border border-white/10 bg-white/5 p-3"
         >
-          <div className="font-semibold mb-1">How to connect Shopify</div>
+          <div className="font-semibold mb-1">Enter your Shopify details</div>
           <ol className="list-decimal list-inside space-y-1 text-neutral-300">
             <li>Create a Custom App in Shopify Admin → Apps → Develop apps.</li>
             <li>Install the app to your store and copy the Admin API access token.</li>
-            <li>Enter your shop domain (your-shop.myshopify.com) and click Connect.</li>
+            <li>Enter your shop domain and token below. New integration coming soon.</li>
           </ol>
         </motion.div>
       )}
@@ -812,75 +446,10 @@ window.addEventListener('pagehide',sendAbandoned);`;
             </div>
           </div>
         </div>
-        {!status.connected && (
-          <button onClick={connect} className="col-span-1 md:col-span-2 w-full h-11 rounded-lg text-white bg-gradient-to-r from-emerald-500 to-teal-600 shadow hover:opacity-95 active:opacity-100 transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2" disabled={busy || !canConnect}>
-            {busy && <LoadingSpinner size="sm" />}
-            {busy ? 'Connecting…' : (canConnect ? 'Connect Shopify' : 'Enter required fields')}
-          </button>
-        )}
-        {status.connected && (
-          <div className="col-span-1 md:col-span-2 flex items-center gap-2">
-            <button onClick={syncNow} className="rounded-lg px-3 h-10 text-sm text-white bg-gradient-to-r from-emerald-500 to-teal-600 shadow hover:opacity-95 active:opacity-100 transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2" disabled={busy}>
-              {busy && <LoadingSpinner size="sm" />}
-              Sync Contacts
-            </button>
-            <button onClick={()=>setConfirmOpen(true)} className="text-xs rounded-md px-2 h-10 border border-rose-700/40 text-rose-300 hover:bg-rose-500/10 transition disabled:opacity-50" disabled={busy}>
-              Disconnect
-            </button>
-            <a href="/dashboard/contacts" className="text-xs rounded-md px-2 h-10 border border-white/10 text-neutral-200 hover:bg-white/5 transition">View Contacts</a>
-          </div>
-        )}
-        <div className="text-xs text-neutral-400">Last synced: {status.lastSyncAt ? new Date(status.lastSyncAt).toLocaleString() : '—'}</div>
-        {!!err && <div className="text-xs text-rose-400 col-span-1 md:col-span-2">{err}</div>}
+        <div className="col-span-1 md:col-span-2 text-xs text-neutral-400">
+          This is a placeholder UI. The new Shopify integration will use these values.
+        </div>
       </div>
-      {status.connected && (
-        <div className="mt-6 rounded-xl border border-white/10 bg-zinc-900/50 p-4">
-          <div className="text-white font-semibold mb-2">Install Cart Tracker (Custom Pixel)</div>
-          <ol className="list-decimal list-inside text-sm text-neutral-300 space-y-1 mb-3">
-            <li>Open Shopify Admin → Settings → Customer events.</li>
-            <li>Click “Add custom pixel” and paste the code below.</li>
-            <li>Save. We will track abandoned checkouts automatically.</li>
-          </ol>
-          <div className="relative">
-            <textarea readOnly value={buildPixelCode(pixelToken) } className="w-full h-40 rounded-lg bg-black/60 border border-white/10 text-xs text-neutral-200 p-3 font-mono"></textarea>
-            <button onClick={copyPixel} className="absolute right-2 top-2 text-xs rounded-md border border-white/10 px-2 py-1 hover:bg-white/5">{pixelCopied ? 'Copied' : 'Copy'}</button>
-          </div>
-          <div className="mt-2 text-xs text-neutral-400">
-            Token is tied to your account ({userUid ? userUid : '—'}). You can rotate it klikom na Refresh u browseru ili re‑povezivanjem.
-          </div>
-        </div>
-      )}
-      {status.connected && (
-        <div className="mt-6 rounded-xl border border-white/10 bg-zinc-900/50 p-4">
-          <div className="text-white font-semibold mb-2">One‑time setup</div>
-          <ol className="list-decimal list-inside text-sm text-neutral-300 space-y-2 mb-3">
-            <li>Disable Shopify default “Abandoned checkout” email (avoid double‑sending).</li>
-            <li>Run a quick test send to verify everything.</li>
-          </ol>
-          <div className="flex flex-wrap gap-3">
-            <button onClick={openShopifyNotifications} className="rounded-lg px-3 h-10 text-sm text-white bg-gradient-to-r from-amber-500 to-orange-600 hover:opacity-95 border border-white/10">
-              Open Shopify Notifications
-            </button>
-            <button onClick={runManualTest} className="rounded-lg px-3 h-10 text-sm text-white bg-gradient-to-r from-emerald-500 to-teal-600 hover:opacity-95 border border-white/10">
-              Send Test Now
-            </button>
-          </div>
-          {!!setupMsg && <div className="mt-2 text-xs text-neutral-300">{setupMsg}</div>}
-          <div className="mt-3 text-xs text-neutral-400">
-            Note: Shopify ne dopušta gašenje default emailova preko API‑ja, zato koristimo direktni link.
-          </div>
-        </div>
-      )}
-      <Modal open={confirmOpen} onClose={()=>setConfirmOpen(false)} title="Disconnect Shopify?">
-        <div className="text-sm text-neutral-300 space-y-3">
-          <p>Are you sure you want to disconnect your Shopify store?</p>
-          <p className="text-rose-300">This will permanently delete the store connection and all imported contacts from your account.</p>
-          <div className="flex items-center justify-end gap-2 pt-2">
-            <button onClick={()=>setConfirmOpen(false)} className="px-3 py-1 rounded bg-zinc-800 border border-white/10">Cancel</button>
-            <button onClick={disconnect} className="px-3 py-1 rounded bg-gradient-to-r from-rose-500 to-pink-600 text-white">Yes, disconnect</button>
-          </div>
-        </div>
-      </Modal>
     </motion.div>
   );
 }
