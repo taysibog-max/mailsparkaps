@@ -1,6 +1,6 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
-import { verifyShopifyWebhook } from '../../../../lib/shopify';
-import { getFirestore } from '../../../../lib/firestoreAdmin';
+import { verifyShopifyWebhook } from '../../../../../dashboard/lib/shopify';
+import { getFirestore } from '../../../../../dashboard/lib/firestoreAdmin';
 
 export const config = {
   api: {
@@ -27,7 +27,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   const shopDomain = String(req.headers['x-shopify-shop-domain'] || payload?.domain || '');
   const db = getFirestore();
 
-  // resolve storeId
   let storeId = '';
   try {
     const q = await db.collection('stores')
@@ -38,16 +37,14 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     if (!q.empty) storeId = q.docs[0].id;
   } catch {}
 
-  // save raw event
   await db.collection('shopify_events').add({
     storeId: storeId || null,
     shopDomain,
-    type: 'checkouts/update',
+    type: 'checkouts/create',
     payload,
     createdAt: new Date(),
   });
 
-  // Upsert abandoned checkout
   const checkoutId = String(payload?.id || payload?.token || '');
   const email = String(payload?.email || payload?.contact_email || payload?.customer?.email || '');
   const completed = Boolean(payload?.completed || payload?.completed_at || payload?.order_id);
@@ -60,26 +57,24 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   const currency = payload?.currency || '';
   const subtotalPrice = payload?.subtotal_price || payload?.total_price || null;
 
-  if (checkoutId) {
+  if (checkoutId && email) {
     const col = db.collection('shopify_abandoned_checkouts');
     const ref = col.doc(checkoutId);
     const now = new Date();
-    const toSet: any = {
+    await ref.set({
       storeId: storeId || null,
       shopDomain,
       checkoutId,
+      email,
+      lineItems,
+      currency,
+      subtotalPrice,
+      completed: completed ? true : false,
+      orderId: completed ? (payload?.order_id || null) : null,
       lastUpdateAt: now,
+      createdAt: now,
       updatedAt: now,
-    };
-    if (email) toSet.email = email;
-    if (lineItems.length) toSet.lineItems = lineItems;
-    if (currency) toSet.currency = currency;
-    if (subtotalPrice) toSet.subtotalPrice = subtotalPrice;
-    if (completed) {
-      toSet.completed = true;
-      toSet.orderId = payload?.order_id || null;
-    }
-    await ref.set(toSet, { merge: true });
+    }, { merge: true });
   }
 
   return res.status(200).json({ ok: true });
