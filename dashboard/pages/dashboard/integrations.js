@@ -20,7 +20,6 @@ export default function IntegrationsPage(){
       <AppShell>
         <div className="grid gap-6 md:grid-cols-2">
           <WooCard />
-          <ShopifyCard />
         </div>
       </AppShell>
     </RequireAuth>
@@ -54,10 +53,6 @@ function StatusPill({ connected, lastSyncAt }){
 
 function WooIcon(){
   return <img src="/icons/woo.svg" alt="WooCommerce" className="h-8 w-8 object-contain" />;
-}
-
-function ShopifyIcon(){
-  return <img src="/icons/shopify.svg" alt="Shopify" className="h-7 w-7 object-contain" />;
 }
 
 function WooCard(){
@@ -389,69 +384,4 @@ function WooCard(){
     </motion.div>
   );
 }
-
-function ShopifyCard(){
-  const [shop, setShop] = useState('');
-  const [accessToken, setAccessToken] = useState('');
-  const [showGuide, setShowGuide] = useState(false);
-  const [showToken, setShowToken] = useState(true);
-  return (
-    <motion.div 
-      initial={{ opacity: 0, y: 10 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ delay: 0.1 }}
-      className="rounded-2xl border border-white/10 bg-zinc-950/60 shadow-[0_10px_30px_rgba(0,0,0,0.25)] p-6"
-    >
-      <div className="flex items-center justify-between mb-4">
-        <div className="flex items-center gap-3">
-          <ShopifyIcon />
-          <div className="text-lg font-semibold">Shopify</div>
-        </div>
-        <div className="flex items-center gap-2">
-          <button type="button" onClick={()=>setShowGuide(s=>!s)} className="p-1.5 rounded-md border border-white/10 hover:bg-white/5" title="How to connect">
-            <HelpCircle className="h-4 w-4 text-neutral-300" />
-          </button>
-        </div>
-      </div>
-      {showGuide && (
-        <motion.div
-          initial={{ opacity: 0, height: 0 }}
-          animate={{ opacity: 1, height: 'auto' }}
-          className="mb-4 text-sm text-neutral-300 rounded-lg border border-white/10 bg-white/5 p-3"
-        >
-          <div className="font-semibold mb-1">Enter your Shopify details</div>
-          <ol className="list-decimal list-inside space-y-1 text-neutral-300">
-            <li>Create a Custom App in Shopify Admin → Apps → Develop apps.</li>
-            <li>Install the app to your store and copy the Admin API access token.</li>
-            <li>Enter your shop domain and token below. New integration coming soon.</li>
-          </ol>
-        </motion.div>
-      )}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div className="flex flex-col gap-1 col-span-1">
-          <label className="text-xs text-neutral-300">Shop domain</label>
-          <input className="h-11 rounded-lg bg-zinc-900/70 border border-zinc-700/60 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/30 text-white placeholder:text-zinc-400 px-3 transition" placeholder="your-shop.myshopify.com" value={shop} onChange={e=>setShop(e.target.value)} />
-        </div>
-        <div className="flex flex-col gap-1 col-span-1">
-          <label className="text-xs text-neutral-300">Admin API access token</label>
-          <div className="relative">
-            <input type={showToken?'text':'password'} className="h-11 w-full rounded-lg bg-zinc-900/70 border border-zinc-700/60 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/30 text-white placeholder:text-zinc-400 px-3 pr-24 transition" placeholder="shpat_..." value={accessToken} onChange={e=>setAccessToken(e.target.value)} />
-            <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-2">
-              <button type="button" onClick={()=>setShowToken(s=>!s)} className="text-xs text-neutral-300 hover:text-white">
-                {showToken ? 'Hide' : 'Show'}
-              </button>
-              <button type="button" onClick={()=>{ navigator.clipboard.readText().then(t=>setAccessToken(t||'')).catch(()=>{}); }} className="text-xs text-neutral-300 hover:text-white">
-                Paste
-              </button>
-            </div>
-          </div>
-        </div>
-        <div className="col-span-1 md:col-span-2 text-xs text-neutral-400">
-          This is a placeholder UI. The new Shopify integration will use these values.
-        </div>
-      </div>
-    </motion.div>
-  );
-}
-
 
