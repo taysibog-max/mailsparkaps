@@ -24,7 +24,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const accessToken = await exchangeCodeForToken(shopDomain, code);
     const encrypted = encryptAccessToken(accessToken);
 
-    const storeId = await saveShopifyStore(uid, shopDomain, encrypted);
+    await saveShopifyStore(uid, shopDomain, encrypted);
 
     // RTDB owner mapping
     try {
@@ -36,15 +36,11 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     // Auto-register webhooks
     try {
-      const base =
-        process.env.NEXT_PUBLIC_APP_URL ||
-        (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : '');
+      const base = process.env.NEXT_PUBLIC_APP_URL || (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : '');
       if (base) await registerShopifyWebhooks(shopDomain, accessToken, base);
     } catch {}
 
-    const appUrl = process.env.NEXT_PUBLIC_APP_URL || '';
-    if (appUrl) return res.redirect(`${appUrl}/dashboard?connected=shopify`);
-    return res.status(200).json({ ok: true, storeId });
+    return res.redirect('/dashboard?connected=shopify');
   } catch (e: any) {
     return res.status(500).json({ error: e?.message || 'Internal error' });
   }

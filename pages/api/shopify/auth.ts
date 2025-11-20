@@ -13,14 +13,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const shop = normalizeShopDomain(shopParam);
     const { url } = buildAuthUrl(shop, uid);
 
-    // Allow direct redirect or JSON response
-    const wantsRedirect = String(req.query.redirect || '').toLowerCase() === '1' ||
-      (req.headers.accept || '').includes('text/html');
-    if (wantsRedirect) {
-      res.writeHead(302, { Location: url });
-      return res.end();
-    }
-    return res.status(200).json({ authUrl: url });
+    res.writeHead(302, { Location: url });
+    return res.end();
   } catch (e: any) {
     const status = e?.message === 'Unauthorized' ? 401 : 500;
     return res.status(status).json({ error: e?.message || 'Internal error' });
