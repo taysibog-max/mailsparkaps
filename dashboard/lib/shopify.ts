@@ -51,11 +51,7 @@ export function verifyState(stateB64: string): string | null {
   try {
     const raw = Buffer.from(stateB64, 'base64').toString('utf8');
     const [uid, ts, nonce, sig] = raw.split(':');
-    const secret =
-      process.env.SHOPIFY_STATE_SECRET ||
-      process.env.SHOPIFY_OAUTH_STATE_SECRET ||
-      process.env.SHOPIFY_TOKEN_ENCRYPTION_KEY ||
-      '';
+    const secret = process.env.SHOPIFY_STATE_SECRET || '';
     const check = crypto.createHmac('sha256', secret).update(`${uid}:${ts}:${nonce}`, 'utf8').digest('hex');
     if (check !== sig) return null;
     return uid;

@@ -50,11 +50,7 @@ export function decryptToken(payload: string): string {
 }
 
 export function signState(data: string): string {
-  const secret =
-    process.env.SHOPIFY_STATE_SECRET ||
-    process.env.SHOPIFY_OAUTH_STATE_SECRET ||
-    process.env.SHOPIFY_TOKEN_ENCRYPTION_KEY ||
-    '';
+  const secret = process.env.SHOPIFY_STATE_SECRET || '';
   if (!secret) throw new Error('Missing state signing secret');
   return crypto.createHmac('sha256', secret).update(data, 'utf8').digest('hex');
 }
