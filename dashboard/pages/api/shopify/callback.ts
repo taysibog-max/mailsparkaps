@@ -1,7 +1,7 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
-import { exchangeCodeForToken, normalizeShopDomain, verifyState, encryptAccessToken } from '../../../lib/shopify';
-import { getFirestore } from '../../../lib/firestoreAdmin';
+import { exchangeCodeForToken, normalizeShopDomain, verifyState, encryptAccessToken, verifyOAuthHmac } from '../../../lib/shopify';
 import { adminDatabase } from '../../../lib/firebaseAdmin';
+import { saveShopifyStore } from '../../../lib/shopifyStore';
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== 'GET') return res.status(405).json({ error: 'Method not allowed' });
@@ -9,7 +9,13 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const shopParam = String(req.query.shop || '');
     const code = String(req.query.code || '');
     const state = String(req.query.state || '');
-    if (!shopParam || !code || !state) return res.status(400).json({ error: 'Missing params' });
+    const hmac = String(req.query.hmac || '');
+    if (!shopParam || !code || !state || !hmac) return res.status(400).json({ error: 'Missing params' });
+
+    // Verify OAuth HMAC per Shopify spec
+    if (!verifyOAuthHmac(req.query as any)) {
+      return res.status(401).json({ error: 'Invalid HMAC' });
+    }
 
     const uid = verifyState(state);
     if (!uid) return res.status(401).json({ error: 'Invalid state' });
@@ -18,18 +24,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const accessToken = await exchangeCodeForToken(shopDomain, code);
     const encrypted = encryptAccessToken(accessToken);
 
-    // Save in Firestore stores collection
-    const db = getFirestore();
-    const storeId = `shopify:${shopDomain}`;
-    await db.collection('stores').doc(storeId).set({
-      storeId,
-      userId: uid,
-      storeType: 'shopify',
-      shopDomain,
-      shopifyAccessToken: encrypted,
-      createdAt: new Date(),
-      updatedAt: new Date(),
-    }, { merge: true });
+    // Save store (autoId) in Firestore
+    const storeId = await saveShopifyStore(uid, shopDomain, encrypted);
 
     // Map store owner for webhooks/pixel resolution (RTDB)
     try {
@@ -54,7 +50,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     } catch (_) {}
 
     const appUrl = process.env.NEXT_PUBLIC_APP_URL || '';
-    if (appUrl) return res.redirect(`${appUrl}/dashboard/integrations?connected=shopify`);
+    if (appUrl) return res.redirect(`${appUrl}/dashboard?connected=shopify`);
     return res.status(200).json({ ok: true });
   } catch (e: any) {
     return res.status(500).json({ error: e?.message || 'Internal error' });
