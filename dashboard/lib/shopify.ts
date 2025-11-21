@@ -31,7 +31,7 @@ export function buildAuthUrl(shop: string, uid: string) {
     process.env.NEXT_PUBLIC_APP_URL ||
     process.env.APP_URL ||
     (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : '');
-  const redirectUri = redirectFromEnv || (base ? `${base}/api/shopify/callback` : '');
+  const redirectUri = redirectFromEnv || (base ? `${base}/dashboard/api/shopify/callback` : '');
   if (!redirectUri) throw new Error('SHOPIFY_REDIRECT_URL/APP_URL not configured');
   const stateRaw = `${uid}:${Date.now()}:${Math.random().toString(36).slice(2)}`;
   const stateSig = signState(stateRaw);
