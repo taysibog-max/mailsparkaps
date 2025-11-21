@@ -1,8 +1,8 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import axios from 'axios';
 import * as admin from 'firebase-admin';
-import { adminAuth, adminDb as adminFirestore } from '../../../dashboard/lib/firebaseAdmin';
-import { getAdminDb } from '../../../dashboard/lib/firebaseAdminDb';
+import { adminAuth, adminDb as adminFirestore } from '../../../lib/firebaseAdmin';
+import { getAdminDb } from '../../../lib/firebaseAdminDb';
 
 function getBearer(req: NextApiRequest): string | null {
   const header = req.headers.authorization;
@@ -191,7 +191,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     // Sync to Brevo
     try {
-      const brevo = await import('../../../dashboard/lib/brevo');
+      const brevo = await import('../../../lib/brevo');
       let synced = 0;
       for (const email of emails) {
         try {

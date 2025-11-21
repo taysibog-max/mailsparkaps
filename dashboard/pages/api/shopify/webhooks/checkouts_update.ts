@@ -1,6 +1,6 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
-import { verifyShopifyWebhook } from '../../../../../dashboard/lib/shopify';
-import { getFirestore } from '../../../../../dashboard/lib/firestoreAdmin';
+import { verifyShopifyWebhook } from '../../../../lib/shopify';
+import { getFirestore } from '../../../../lib/firestoreAdmin';
 
 export const config = {
   api: {
@@ -40,7 +40,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   await db.collection('shopify_events').add({
     storeId: storeId || null,
     shopDomain,
-    type: 'checkouts/create',
+    type: 'checkouts/update',
     payload,
     createdAt: new Date(),
   });
@@ -57,27 +57,28 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   const currency = payload?.currency || '';
   const subtotalPrice = payload?.subtotal_price || payload?.total_price || null;
 
-  if (checkoutId && email) {
+  if (checkoutId) {
     const col = db.collection('shopify_abandoned_checkouts');
     const ref = col.doc(checkoutId);
     const now = new Date();
-    await ref.set({
+    const toSet: any = {
       storeId: storeId || null,
       shopDomain,
       checkoutId,
-      email,
-      lineItems,
-      currency,
-      subtotalPrice,
-      completed: completed ? true : false,
-      orderId: completed ? (payload?.order_id || null) : null,
       lastUpdateAt: now,
-      createdAt: now,
       updatedAt: now,
-    }, { merge: true });
+    };
+    if (email) toSet.email = email;
+    if (lineItems.length) toSet.lineItems = lineItems;
+    if (currency) toSet.currency = currency;
+    if (subtotalPrice) toSet.subtotalPrice = subtotalPrice;
+    if (completed) {
+      toSet.completed = true;
+      toSet.orderId = payload?.order_id || null;
+    }
+    await ref.set(toSet, { merge: true });
   }
 
   return res.status(200).json({ ok: true });
 }
-
 

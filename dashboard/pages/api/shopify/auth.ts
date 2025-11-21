@@ -1,6 +1,6 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
-import { buildAuthUrl, normalizeShopDomain } from '../../../dashboard/lib/shopify';
-import { requireUser } from '../../../dashboard/lib/auth';
+import { buildAuthUrl, normalizeShopDomain } from '../../../lib/shopify';
+import { requireUser } from '../../../lib/auth';
 
 function attachTokenFromQuery(req: NextApiRequest) {
   if (req.headers.authorization) return;
@@ -29,5 +29,4 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return res.status(status).json({ error: e?.message || 'Internal error' });
   }
 }
-
 

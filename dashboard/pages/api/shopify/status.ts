@@ -1,6 +1,5 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
-import { adminAuth } from '../../../dashboard/lib/firebaseAdmin';
-import { getAdminDb } from '../../../dashboard/lib/firebaseAdminDb';
+import { adminAuth, adminDatabase } from '../../../lib/firebaseAdmin';
 
 function getBearer(req: NextApiRequest): string | null {
   const header = req.headers.authorization;
@@ -17,13 +16,12 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     if (!decoded) return res.status(200).json({ store: null });
     const uid = decoded.uid;
 
-    const db = getAdminDb();
-    const snapshot = await db.ref(`users/${uid}/integrations/shopify`).get();
+    const snapshot = await adminDatabase.ref(`users/${uid}/integrations/shopify`).get();
     let store = snapshot.exists() ? snapshot.val() : null;
 
     if (store && !store.accessToken) {
       try {
-        const mirror = await db.ref(`stores/${uid}_shopify`).get();
+        const mirror = await adminDatabase.ref(`stores/${uid}_shopify`).get();
         if (mirror.exists()) {
           const data = mirror.val() || {};
           if (data.accessToken) store.accessToken = data.accessToken;

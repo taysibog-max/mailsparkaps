@@ -1,6 +1,6 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
-import { verifyShopifyWebhook } from '../../../../../dashboard/lib/shopify';
-import { getFirestore } from '../../../../../dashboard/lib/firestoreAdmin';
+import { verifyShopifyWebhook } from '../../../../lib/shopify';
+import { getFirestore } from '../../../../lib/firestoreAdmin';
 
 export const config = {
   api: {
@@ -40,38 +40,43 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   await db.collection('shopify_events').add({
     storeId: storeId || null,
     shopDomain,
-    type: 'orders/create',
+    type: 'checkouts/create',
     payload,
     createdAt: new Date(),
   });
 
-  const checkoutToken = String(payload?.checkout_token || payload?.checkout_id || '');
-  const email = String(payload?.email || payload?.customer?.email || '');
-  const orderId = String(payload?.id || payload?.order_number || '');
+  const checkoutId = String(payload?.id || payload?.token || '');
+  const email = String(payload?.email || payload?.contact_email || payload?.customer?.email || '');
+  const completed = Boolean(payload?.completed || payload?.completed_at || payload?.order_id);
+  const lineItems = Array.isArray(payload?.line_items) ? payload.line_items.map((it: any) => ({
+    id: it.id || it.variant_id || null,
+    title: it.title,
+    quantity: it.quantity,
+    price: it.price,
+  })) : [];
+  const currency = payload?.currency || '';
+  const subtotalPrice = payload?.subtotal_price || payload?.total_price || null;
 
-  try {
+  if (checkoutId && email) {
     const col = db.collection('shopify_abandoned_checkouts');
-    let docId: string | null = null;
-
-    if (checkoutToken) {
-      const q1 = await col.where('checkoutId', '==', checkoutToken).limit(1).get();
-      if (!q1.empty) docId = q1.docs[0].id;
-    }
-    if (!docId && email) {
-      const q2 = await col.where('email', '==', email).limit(1).get();
-      if (!q2.empty) docId = q2.docs[0].id;
-    }
-
-    if (docId) {
-      await col.doc(docId).set({
-        completed: true,
-        orderId,
-        updatedAt: new Date(),
-      }, { merge: true });
-    }
-  } catch {}
+    const ref = col.doc(checkoutId);
+    const now = new Date();
+    await ref.set({
+      storeId: storeId || null,
+      shopDomain,
+      checkoutId,
+      email,
+      lineItems,
+      currency,
+      subtotalPrice,
+      completed: completed ? true : false,
+      orderId: completed ? (payload?.order_id || null) : null,
+      lastUpdateAt: now,
+      createdAt: now,
+      updatedAt: now,
+    }, { merge: true });
+  }
 
   return res.status(200).json({ ok: true });
 }
-
 

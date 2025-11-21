@@ -1,8 +1,8 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
-import { exchangeCodeForToken, normalizeShopDomain, verifyState, encryptAccessToken, verifyOAuthHmac } from '../../../dashboard/lib/shopify';
-import { adminDatabase } from '../../../dashboard/lib/firebaseAdmin';
-import { saveShopifyStore } from '../../../dashboard/lib/shopifyStore';
-import { registerShopifyWebhooks } from '../../../dashboard/lib/shopifyWebhooks';
+import { exchangeCodeForToken, normalizeShopDomain, verifyState, encryptAccessToken, verifyOAuthHmac } from '../../../lib/shopify';
+import { adminDatabase } from '../../../lib/firebaseAdmin';
+import { saveShopifyStore } from '../../../lib/shopifyStore';
+import { registerShopifyWebhooks } from '../../../lib/shopifyWebhooks';
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== 'GET') return res.status(405).json({ error: 'Method not allowed' });
@@ -45,5 +45,4 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return res.status(500).json({ error: e?.message || 'Internal error' });
   }
 }
-
 
