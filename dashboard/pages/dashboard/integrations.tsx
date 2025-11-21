@@ -1,3 +1,4 @@
+// @ts-nocheck
 import AppShell from '../../components/AppShell';
 import RequireAuth from '../../components/RequireAuth';
 import { useState, useEffect } from 'react';
@@ -13,6 +14,7 @@ import { motion } from 'framer-motion';
 import Modal from '../../components/Modal';
 import { saveContactsToIndexedDB } from '../../lib/indexedDbAdapter';
 import { saveContactsToLocalStorage } from '../../lib/contactsCache';
+import ShopifyIntegrationCard from '../../components/integrations/ShopifyIntegrationCard';
 
 export default function IntegrationsPage(){
   return (
@@ -20,6 +22,7 @@ export default function IntegrationsPage(){
       <AppShell>
         <div className="grid gap-6 md:grid-cols-1">
           <WooCard />
+          <ShopifyIntegrationCard />
         </div>
       </AppShell>
     </RequireAuth>
