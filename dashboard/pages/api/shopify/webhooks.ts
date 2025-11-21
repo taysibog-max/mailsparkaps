@@ -92,7 +92,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return res.status(401).json({ error: 'Missing HMAC header' });
   }
 
-  const digest = crypto.createHmac('sha256', secret).update(rawBody, 'utf8').digest('base64');
+  const digest = crypto.createHmac('sha256', secret).update(rawBody).digest('base64');
   let provided: Buffer;
   try {
     provided = Buffer.from(hmacHeader, 'base64');
