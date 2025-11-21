@@ -1,5 +1,4 @@
-import { adminAuth, getAdminDb } from '../../../lib/firebaseAdmin';
-import { adminDb } from '../../../lib/firebaseAdmin';
+import { adminAuth, adminDatabase, adminDb } from '../../../lib/firebaseAdmin';
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
@@ -45,8 +44,7 @@ export default async function handler(req, res) {
 
     // Delete from Realtime Database
     try {
-      const rtdb = getAdminDb();
-      await rtdb.ref(`users/${uid}/contacts/${emailKey}`).remove();
+      await adminDatabase.ref(`users/${uid}/contacts/${emailKey}`).remove();
       console.log(`✅ Deleted from RTDB: ${email} (key: ${emailKey})`);
     } catch (rtdbError) {
       console.error('RTDB delete error:', rtdbError);

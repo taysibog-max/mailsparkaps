@@ -18,9 +18,8 @@ export default function IntegrationsPage(){
   return (
     <RequireAuth>
       <AppShell>
-        <div className="grid gap-6 md:grid-cols-2">
+        <div className="grid gap-6 md:grid-cols-1">
           <WooCard />
-          <ShopifyCard />
         </div>
       </AppShell>
     </RequireAuth>
@@ -54,10 +53,6 @@ function StatusPill({ connected, lastSyncAt }){
 
 function WooIcon(){
   return <img src="/icons/woo.svg" alt="WooCommerce" className="h-8 w-8 object-contain" />;
-}
-
-function ShopifyIcon(){
-  return <img src="/icons/shopify.svg" alt="Shopify" className="h-7 w-7 object-contain" />;
 }
 
 function WooCard(){
@@ -386,63 +381,6 @@ function WooCard(){
           </div>
         </div>
       </Modal>
-    </motion.div>
-  );
-}
-
-function ShopifyCard(){
-  const [shop, setShop] = useState('');
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState('');
-  const [showToken, setShowToken] = useState(false); // reserved for future
-  const isValidShop = (s)=>/^[a-z0-9-]+\.myshopify\.com$/i.test(String(s).trim());
-  async function connectShopify(){
-    try{
-      setError('');
-      if (!isValidShop(shop)) throw new Error('Unesite validan shop domen (your-shop.myshopify.com)');
-      setBusy(true);
-      const { auth } = getFirebaseApp();
-      const idt = await auth.currentUser?.getIdToken?.(true);
-      if (!idt) throw new Error('Niste prijavljeni');
-      const url = new URL(window.location.origin + '/api/shopify/auth');
-      url.searchParams.set('shop', shop.trim());
-      url.searchParams.set('token', idt);
-      window.location.href = url.toString();
-    }catch(e){
-      setError(e?.message || 'Greška');
-    }finally{
-      setBusy(false);
-    }
-  }
-  return (
-    <motion.div 
-      initial={{ opacity: 0, y: 10 }}
-      animate={{ opacity: 1, y: 0 }}
-      className="rounded-2xl border border-white/10 bg-zinc-950/60 shadow-[0_10px_30px_rgba(0,0,0,0.25)] p-6"
-    >
-      <div className="flex items-center justify-between mb-4">
-        <div className="flex items-center gap-3">
-          <ShopifyIcon />
-          <div className="text-lg font-semibold">Shopify</div>
-        </div>
-      </div>
-      <div className="grid gap-3">
-        <input 
-          className="h-10 rounded-lg bg-zinc-900/70 border border-zinc-700/60 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/30 text-white placeholder:text-zinc-400 px-3 transition" 
-          placeholder="your-shop.myshopify.com" 
-          value={shop} 
-          onChange={e=>setShop(e.target.value)} 
-        />
-        <button 
-          type="button"
-          onClick={connectShopify}
-          disabled={busy || !isValidShop(shop)}
-          className="w-max rounded-lg px-4 py-2 text-white bg-gradient-to-r from-emerald-500 to-green-600 shadow hover:scale-[1.02] active:scale-100 transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
-        >
-          {busy ? 'Connecting…' : (isValidShop(shop) ? 'Connect Shopify' : 'Enter shop domain')}
-        </button>
-        {!!error && <div className="text-xs text-rose-400">{error}</div>}
-      </div>
     </motion.div>
   );
 }

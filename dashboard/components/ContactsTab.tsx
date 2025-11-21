@@ -20,7 +20,7 @@ export default function ContactsTab(){
   const [loading, setLoading] = useState<boolean>(true);
   const [syncing, setSyncing] = useState<boolean>(false);
   const [error, setError] = useState<string>('');
-  const [platform, setPlatform] = useState<'woocommerce'|'shopify'|null>(null);
+  const [platform, setPlatform] = useState<'woocommerce'|null>(null);
   const [loadingSource, setLoadingSource] = useState<string>('');
   const [showAddContact, setShowAddContact] = useState<boolean>(false);
   const [newContactEmail, setNewContactEmail] = useState<string>('');
@@ -213,35 +213,21 @@ export default function ContactsTab(){
       
       console.log(`🔄 Starting ${syncType} sync...`);
       
-      // Platform-aware sync
-      let emails: string[] = [];
-      if (platform === 'shopify') {
-        setSyncProgress(20);
-        setLoadingSource('Dohvaćam kontakte iz Shopify...');
-        const shpStatus = await apiGet('/api/shopify/status');
-        if (!shpStatus?.store) {
-          throw new Error('Shopify nije konektovan. Molimo konektujte Shopify u Integrations tab-u.');
-        }
-        const shpResp = await apiPost('/api/shopify/sync-contacts', {});
-        emails = (shpResp?.emails || []).map((e: string) => e.toLowerCase());
-        console.log('Shopify sync completed:', { count: emails.length });
-      } else {
-        // default WooCommerce
-        setSyncProgress(25);
-        setLoadingSource('Dohvaćam kontakte iz WooCommerce...');
-        const wooStatus = await apiGet('/api/integrations/woo/status');
-        if (!wooStatus?.store) {
-          throw new Error('WooCommerce nije konektovan. Molimo konektujte WooCommerce u Integrations tab-u.');
-        }
-        const wooResponse = await apiPost('/api/integrations/woo/connect-and-sync', {
-          storeUrl: wooStatus.store.shopUrl || wooStatus.store.url,
-          consumer_key: wooStatus.store.consumerKey || wooStatus.store.key,
-          consumer_secret: wooStatus.store.consumerSecret || wooStatus.store.secret,
-          backupApi: process.env.NEXT_PUBLIC_BACKUP_API
-        });
-        emails = (wooResponse?.emails || []).map((e: string) => e.toLowerCase());
-        console.log('WooCommerce sync completed:', { count: emails.length });
+      // WooCommerce sync
+      setSyncProgress(25);
+      setLoadingSource('Dohvaćam kontakte iz WooCommerce...');
+      const wooStatus = await apiGet('/api/integrations/woo/status');
+      if (!wooStatus?.store) {
+        throw new Error('WooCommerce nije konektovan. Molimo konektujte WooCommerce u Integrations tab-u.');
       }
+      const wooResponse = await apiPost('/api/integrations/woo/connect-and-sync', {
+        storeUrl: wooStatus.store.shopUrl || wooStatus.store.url,
+        consumer_key: wooStatus.store.consumerKey || wooStatus.store.key,
+        consumer_secret: wooStatus.store.consumerSecret || wooStatus.store.secret,
+        backupApi: process.env.NEXT_PUBLIC_BACKUP_API
+      });
+      const emails: string[] = (wooResponse?.emails || []).map((e: string) => e.toLowerCase());
+      console.log('WooCommerce sync completed:', { count: emails.length });
 
       // Napredak: 25→55 tokom preuzimanja i transformacije
       setSyncProgress(55);
@@ -445,13 +431,8 @@ export default function ContactsTab(){
     try {
       if (store?.platform) { setPlatform(store.platform); return; }
       const attempt = async () => {
-        const ts = Date.now();
-        const [woo, shp] = await Promise.all([
-          apiGet(`/api/integrations/woo/status?ts=${ts}`).catch(()=>({})),
-          apiGet(`/api/shopify/status?ts=${ts}`).catch(()=>({}))
-        ]);
+        const woo = await apiGet(`/api/integrations/woo/status?ts=${Date.now()}`).catch(()=>({}));
         if (woo?.store) { setPlatform('woocommerce'); return true; }
-        if (shp?.store) { setPlatform('shopify'); return true; }
         return false;
       };
       let ok = await attempt();

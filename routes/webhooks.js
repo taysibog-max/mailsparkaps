@@ -7,26 +7,6 @@ const { saveCart } = require('../utils/firebase');
 const router = express.Router();
 
 /**
- * Verify Shopify HMAC signature
- * @param {string} body - Raw request body
- * @param {string} hmacHeader - HMAC header value
- * @param {string} secret - Webhook secret
- */
-function verifyShopifyWebhook(body, hmacHeader, secret) {
-  if (!secret) {
-    console.warn('[Webhook] WEBHOOK_SECRET not set, skipping verification');
-    return true; // Allow in dev mode
-  }
-
-  const hash = crypto
-    .createHmac('sha256', secret)
-    .update(body, 'utf8')
-    .digest('base64');
-
-  return hash === hmacHeader;
-}
-
-/**
  * Verify WooCommerce signature
  * @param {string} body - Raw request body
  * @param {string} signature - Signature header value
@@ -48,7 +28,7 @@ function verifyWooCommerceWebhook(body, signature, secret) {
 
 /**
  * POST /api/webhooks/cart
- * Receive cart abandoned events from Shopify or WooCommerce
+ * Receive cart abandoned events from WooCommerce
  */
 router.post('/cart', express.raw({ type: 'application/json' }), async (req, res) => {
   try {
@@ -57,25 +37,18 @@ router.post('/cart', express.raw({ type: 'application/json' }), async (req, res)
     const bodyData = JSON.parse(rawBody);
 
     // Detect platform and verify signature
-    const shopifyHmac = req.headers['x-shopify-hmac-sha256'];
     const wooSignature = req.headers['x-wc-webhook-signature'];
     const webhookSecret = process.env.WEBHOOK_SECRET;
 
     let isValid = false;
-    let platform = 'unknown';
+    let platform = 'woocommerce';
 
-    if (shopifyHmac) {
-      platform = 'shopify';
-      isValid = verifyShopifyWebhook(rawBody, shopifyHmac, webhookSecret);
-    } else if (wooSignature) {
-      platform = 'woocommerce';
+    if (wooSignature) {
       isValid = verifyWooCommerceWebhook(rawBody, wooSignature, webhookSecret);
-    } else {
+    } else if (!webhookSecret) {
       // No signature header - allow in dev mode
-      if (!webhookSecret) {
-        isValid = true;
-        console.warn('[Webhook] No signature header detected, allowing in dev mode');
-      }
+      isValid = true;
+      console.warn('[Webhook] No signature header detected, allowing in dev mode');
     }
 
     if (!isValid) {
@@ -124,30 +97,10 @@ router.post('/cart', express.raw({ type: 'application/json' }), async (req, res)
 
 /**
  * Extract cart data from webhook payload
- * Handles different formats from Shopify and WooCommerce
+ * Handles different formats from WooCommerce
  */
 function extractCartData(payload, platform) {
   try {
-    if (platform === 'shopify') {
-      // Shopify cart/checkout format
-      return {
-        cart_id: payload.token || payload.id || payload.cart_token,
-        user_email: payload.email || payload.customer?.email,
-        cart_items: (payload.line_items || []).map(item => ({
-          id: item.id,
-          product_id: item.product_id,
-          variant_id: item.variant_id,
-          name: item.title || item.name,
-          quantity: item.quantity,
-          price: item.price,
-          sku: item.sku,
-        })),
-        timestamp: payload.created_at 
-          ? new Date(payload.created_at).getTime() 
-          : Date.now(),
-      };
-    } 
-    
     if (platform === 'woocommerce') {
       // WooCommerce cart format
       return {

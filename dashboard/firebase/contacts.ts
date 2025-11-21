@@ -5,8 +5,8 @@ export type ImportedContact = {
   email: string;
   firstName?: string;
   lastName?: string;
-  source: 'woocommerce' | 'shopify';
-  sourceStore?: 'woocommerce' | 'shopify';
+  source: string;
+  sourceStore?: string;
   importedAt?: any;
   dateImported?: any;
   createdAt?: string; // ISO string for client-side date display

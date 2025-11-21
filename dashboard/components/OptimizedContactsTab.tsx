@@ -30,7 +30,7 @@ export default function OptimizedContactsTab() {
   const [syncing, setSyncing] = useState<boolean>(false);
   const [error, setError] = useState<string>('');
   const [success, setSuccess] = useState<string>('');
-  const [platform, setPlatform] = useState<'woocommerce'|'shopify'|null>(null);
+  const [platform, setPlatform] = useState<'woocommerce'|null>(null);
   
   // Progress tracking
   const [syncProgress, setSyncProgress] = useState<number>(0);

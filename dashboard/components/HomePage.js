@@ -104,7 +104,7 @@ export default function HomePage() {
           <div className="mt-6 grid md:grid-cols-3 gap-6">
             {[
               ['Starter','$29.90/mj', ['3.000 emailova','1 automatizacija','AI subject + body','Osnovna statistika','1 integracija']],
-              ['Pro','$49.90/mj', ['10.000 emailova','do 5 automatizacija','AI + personalizacija','Detaljna analitika','Shopify + Woo + Webhook']],
+              ['Pro','$49.90/mj', ['10.000 emailova','do 5 automatizacija','AI + personalizacija','Detaljna analitika','Woo + Webhook']],
               ['Ultimate','$99.90/mj', ['50.000 emailova','Neograničene automatizacije','AI + dinamički sadržaj','Analitika + eksport','Scheduler + retry']],
             ].map(([title, price, feats]) => (
               <article key={title} className="glass rounded-2xl p-6">

@@ -7,7 +7,8 @@ export default async function handler(req, res) {
   }
 
   try {
-    const { platform = 'woocommerce', batchSize = 50 } = req.body;
+    const { batchSize = 50 } = req.body;
+    const platform = 'woocommerce';
 
     // Get user ID from request (you might need to add authentication here)
     const { adminAuth: auth } = await import('../../lib/firebaseAdmin');
@@ -50,7 +51,7 @@ async function syncContactsForUser(userId, platform, batchSize) {
     const existingEmails = new Set(existingContacts.map(c => c.email.toLowerCase()));
     console.log(`📋 Found ${existingEmails.size} existing contacts in Firestore`);
     
-    // 2. Get contacts from WooCommerce/Shopify
+    // 2. Get contacts from WooCommerce
     const storeContacts = await fetchContactsFromStore(platform, userId);
     console.log(`📥 Retrieved ${storeContacts.length} contacts from ${platform}`);
     
@@ -90,7 +91,7 @@ async function syncContactsForUser(userId, platform, batchSize) {
 async function fetchContactsFromStore(platform, userId) {
   try {
     // First check if store is actually connected
-    const statusResponse = await fetch(`http://localhost:3000/api/${platform === 'woocommerce' ? 'integrations/woo' : 'shopify'}/status`);
+    const statusResponse = await fetch(`http://localhost:3000/api/integrations/woo/status`);
     const statusData = await statusResponse.json();
     
     if (!statusData.store) {
@@ -100,59 +101,30 @@ async function fetchContactsFromStore(platform, userId) {
     
     console.log(`✅ ${platform} store is connected, fetching real data`);
     
-    if (platform === 'woocommerce') {
-      // Call the real WooCommerce sync API
-      const wooResponse = await fetch(`http://localhost:3000/api/integrations/woo/sync`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${process.env.DEV_TOKEN || 'dev-token'}`
-        },
-        body: JSON.stringify({ force: true })
-      });
-      
-      if (!wooResponse.ok) {
-        throw new Error(`WooCommerce API error: ${wooResponse.status}`);
-      }
-      
-      const wooData = await wooResponse.json();
-      const contacts = wooData.emails?.map(email => ({
-        email,
-        firstName: '',
-        lastName: '',
-        source: 'woocommerce'
-      })) || [];
-      
-      console.log(`📡 Fetched ${contacts.length} contacts from WooCommerce`);
-      return contacts;
-      
-    } else if (platform === 'shopify') {
-      // Call the real Shopify sync API
-      const shopifyResponse = await fetch(`http://localhost:3000/api/shopify/sync-contacts`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${process.env.DEV_TOKEN || 'dev-token'}`
-        }
-      });
-      
-      if (!shopifyResponse.ok) {
-        throw new Error(`Shopify API error: ${shopifyResponse.status}`);
-      }
-      
-      const shopifyData = await shopifyResponse.json();
-      const contacts = shopifyData.emails?.map(email => ({
-        email,
-        firstName: '',
-        lastName: '',
-        source: 'shopify'
-      })) || [];
-      
-      console.log(`📡 Fetched ${contacts.length} contacts from Shopify`);
-      return contacts;
+    // Call the real WooCommerce sync API
+    const wooResponse = await fetch(`http://localhost:3000/api/integrations/woo/sync`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${process.env.DEV_TOKEN || 'dev-token'}`
+      },
+      body: JSON.stringify({ force: true })
+    });
+    
+    if (!wooResponse.ok) {
+      throw new Error(`WooCommerce API error: ${wooResponse.status}`);
     }
     
-    return [];
+    const wooData = await wooResponse.json();
+    const contacts = wooData.emails?.map(email => ({
+      email,
+      firstName: '',
+      lastName: '',
+      source: 'woocommerce'
+    })) || [];
+    
+    console.log(`📡 Fetched ${contacts.length} contacts from WooCommerce`);
+    return contacts;
   } catch (error) {
     console.error(`Error fetching contacts from ${platform}:`, error);
     console.log(`⚠️ Using mock data for ${platform} due to API error`);

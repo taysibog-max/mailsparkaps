@@ -26,7 +26,7 @@ export default function CampaignsPage() {
 function CampaignsContent() {
   const { isConnected } = useStore();
   const [loading, setLoading] = useState(true);
-  const [platform, setPlatform] = useState(null); // 'woocommerce' | 'shopify' | null
+  const [platform, setPlatform] = useState(null); // 'woocommerce' | null
   const [connReady, setConnReady] = useState(false); // finished connection status check
   const [activeTab, setActiveTab] = useState('dashboard'); // dashboard, my-campaigns, create, analytics
   const [showCampaignModal, setShowCampaignModal] = useState(false);
@@ -119,13 +119,9 @@ function CampaignsContent() {
     (async () => {
       try {
         const ts = Date.now();
-        const [woo, shp] = await Promise.all([
-          apiGet(`/api/integrations/woo/status?ts=${ts}`).catch(() => ({})),
-          apiGet(`/api/shopify/status?ts=${ts}`).catch(() => ({})),
-        ]);
+        const woo = await apiGet(`/api/integrations/woo/status?ts=${ts}`).catch(() => ({}));
         if (cancelled) return;
         if (woo?.store) setPlatform('woocommerce');
-        else if (shp?.store) setPlatform('shopify');
         else setPlatform(null);
       } catch (_) {
         if (!cancelled) setPlatform(null);
@@ -302,7 +298,7 @@ function CampaignsContent() {
               Connect Your Store First
             </h3>
             <p className="text-amber-200/80 mb-4 text-sm leading-relaxed">
-              To create email campaigns, you need to connect your WooCommerce or Shopify store first.
+              To create email campaigns, you need to connect your WooCommerce store first.
               This allows us to sync your contacts and trigger automated campaigns based on customer behavior.
             </p>
             <a

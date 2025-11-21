@@ -141,11 +141,10 @@ export function StoreProvider({ children }) {
     ]).catch(() => ({ platform: null, connected: false, data: null }));
     
     // Sve API pozive izvršavamo paralelno
-    const [_, connectionResult, wooStatus, shopifyStatus] = await Promise.all([
+    const [_, connectionResult, wooStatus] = await Promise.all([
       apiGet('/api/user/ensure').catch(() => null),
       connectionPromise,
       apiGet(`/api/integrations/woo/status?ts=${Date.now()}`).catch(() => null),
-      apiGet(`/api/shopify/status?ts=${Date.now()}`).catch(() => null),
     ]);
     
     let storeData = null;
@@ -157,8 +156,6 @@ export function StoreProvider({ children }) {
       // Fallback na API statuse
       if (wooStatus?.store) {
         storeData = { platform: 'woocommerce', ...wooStatus.store };
-      } else if (shopifyStatus?.store) {
-        storeData = { platform: 'shopify', ...shopifyStatus.store };
       }
       
       // Sačuvaj u Firestore ako je pronađen

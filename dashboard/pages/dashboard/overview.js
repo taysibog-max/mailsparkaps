@@ -60,19 +60,12 @@ function Overview() {
       let storeUrl = null;
 
       try {
-        const [wooStatus, shopifyStatus] = await Promise.all([
-          apiGet('/api/integrations/woo/status').catch(() => null),
-          apiGet('/api/shopify/status').catch(() => null)
-        ]);
+        const wooStatus = await apiGet('/api/integrations/woo/status').catch(() => null);
 
         if (wooStatus?.store) {
           platform = 'woocommerce';
           lastSync = wooStatus.store.lastSynced || wooStatus.store.connectedAt;
           storeUrl = wooStatus.store.shopUrl || wooStatus.store.storeUrl;
-        } else if (shopifyStatus?.store) {
-          platform = 'shopify';
-          lastSync = shopifyStatus.store.lastSynced || shopifyStatus.store.connectedAt;
-          storeUrl = shopifyStatus.store.shop || shopifyStatus.store.storeUrl;
         }
       } catch (e) {
         console.error('Failed to load store status:', e);
