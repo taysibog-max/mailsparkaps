@@ -62,7 +62,7 @@ function Overview() {
       try {
         const [wooStatus, shopifyStatus] = await Promise.all([
           apiGet('/api/integrations/woo/status').catch(() => null),
-          apiGet('/api/integrations/shopify/status').catch(() => null)
+          apiGet('/api/shopify/status').catch(() => null)
         ]);
 
         if (wooStatus?.store) {

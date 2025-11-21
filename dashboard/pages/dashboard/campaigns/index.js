@@ -121,7 +121,7 @@ function CampaignsContent() {
         const ts = Date.now();
         const [woo, shp] = await Promise.all([
           apiGet(`/api/integrations/woo/status?ts=${ts}`).catch(() => ({})),
-          apiGet(`/api/integrations/shopify/status?ts=${ts}`).catch(() => ({})),
+          apiGet(`/api/shopify/status?ts=${ts}`).catch(() => ({})),
         ]);
         if (cancelled) return;
         if (woo?.store) setPlatform('woocommerce');

@@ -145,7 +145,7 @@ export function StoreProvider({ children }) {
       apiGet('/api/user/ensure').catch(() => null),
       connectionPromise,
       apiGet(`/api/integrations/woo/status?ts=${Date.now()}`).catch(() => null),
-      apiGet(`/api/integrations/shopify/status?ts=${Date.now()}`).catch(() => null),
+      apiGet(`/api/shopify/status?ts=${Date.now()}`).catch(() => null),
     ]);
     
     let storeData = null;

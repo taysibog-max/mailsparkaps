@@ -218,11 +218,11 @@ export default function ContactsTab(){
       if (platform === 'shopify') {
         setSyncProgress(20);
         setLoadingSource('Dohvaćam kontakte iz Shopify...');
-        const shpStatus = await apiGet('/api/integrations/shopify/status');
+        const shpStatus = await apiGet('/api/shopify/status');
         if (!shpStatus?.store) {
           throw new Error('Shopify nije konektovan. Molimo konektujte Shopify u Integrations tab-u.');
         }
-        const shpResp = await apiPost('/api/integrations/shopify/sync-contacts', {});
+        const shpResp = await apiPost('/api/shopify/sync-contacts', {});
         emails = (shpResp?.emails || []).map((e: string) => e.toLowerCase());
         console.log('Shopify sync completed:', { count: emails.length });
       } else {
@@ -448,7 +448,7 @@ export default function ContactsTab(){
         const ts = Date.now();
         const [woo, shp] = await Promise.all([
           apiGet(`/api/integrations/woo/status?ts=${ts}`).catch(()=>({})),
-          apiGet(`/api/integrations/shopify/status?ts=${ts}`).catch(()=>({}))
+          apiGet(`/api/shopify/status?ts=${ts}`).catch(()=>({}))
         ]);
         if (woo?.store) { setPlatform('woocommerce'); return true; }
         if (shp?.store) { setPlatform('shopify'); return true; }

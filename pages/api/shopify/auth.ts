@@ -2,11 +2,20 @@ import type { NextApiRequest, NextApiResponse } from 'next';
 import { buildAuthUrl, normalizeShopDomain } from '../../../dashboard/lib/shopify';
 import { requireUser } from '../../../dashboard/lib/auth';
 
+function attachTokenFromQuery(req: NextApiRequest) {
+  if (req.headers.authorization) return;
+  const raw = req.query.token;
+  const token = Array.isArray(raw) ? raw[0] : raw;
+  if (token) {
+    (req.headers as Record<string, string>).authorization = `Bearer ${token}`;
+  }
+}
+
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== 'GET') return res.status(405).json({ error: 'Method not allowed' });
   try {
-    let uid = 'anonymous';
-    try { uid = (await requireUser(req)).uid; } catch {}
+    attachTokenFromQuery(req);
+    const { uid } = await requireUser(req);
 
     const shopParam = String(req.query.shop || '');
     if (!shopParam) return res.status(400).json({ error: 'Missing shop' });

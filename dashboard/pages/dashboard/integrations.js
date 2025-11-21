@@ -404,12 +404,10 @@ function ShopifyCard(){
       const { auth } = getFirebaseApp();
       const idt = await auth.currentUser?.getIdToken?.(true);
       if (!idt) throw new Error('Niste prijavljeni');
-      const r = await fetch(`/api/shopify/auth?shop=${encodeURIComponent(shop)}`, {
-        headers: { Authorization: `Bearer ${idt}` }
-      });
-      const d = await r.json().catch(()=> ({}));
-      if (!r.ok || !d?.authUrl) throw new Error(d?.error || 'Neuspješan start Shopify OAuth-a');
-      window.location.href = d.authUrl;
+      const url = new URL(window.location.origin + '/api/shopify/auth');
+      url.searchParams.set('shop', shop.trim());
+      url.searchParams.set('token', idt);
+      window.location.href = url.toString();
     }catch(e){
       setError(e?.message || 'Greška');
     }finally{

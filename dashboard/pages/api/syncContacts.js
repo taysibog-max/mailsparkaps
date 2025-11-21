@@ -90,7 +90,7 @@ async function syncContactsForUser(userId, platform, batchSize) {
 async function fetchContactsFromStore(platform, userId) {
   try {
     // First check if store is actually connected
-    const statusResponse = await fetch(`http://localhost:3000/api/integrations/${platform === 'woocommerce' ? 'woo' : 'shopify'}/status`);
+    const statusResponse = await fetch(`http://localhost:3000/api/${platform === 'woocommerce' ? 'integrations/woo' : 'shopify'}/status`);
     const statusData = await statusResponse.json();
     
     if (!statusData.store) {
@@ -128,7 +128,7 @@ async function fetchContactsFromStore(platform, userId) {
       
     } else if (platform === 'shopify') {
       // Call the real Shopify sync API
-      const shopifyResponse = await fetch(`http://localhost:3000/api/integrations/shopify/sync-contacts`, {
+      const shopifyResponse = await fetch(`http://localhost:3000/api/shopify/sync-contacts`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
