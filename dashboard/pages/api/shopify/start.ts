@@ -1,19 +1,55 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import crypto from 'crypto';
 import { adminAuth, adminDatabase } from '../../../lib/firebaseAdmin';
+import { resolveShopifyRedirectUri } from '../../../lib/shopifyConfig';
 
-const DEFAULT_SCOPES = 'read_checkouts,read_orders,write_orders';
-const REQUIRED_SCOPES = ['read_orders'];
+const REQUIRED_SCOPES = [
+  'read_orders',
+  'write_orders',
+  'read_checkouts',
+  'write_customers',
+  'read_customers',
+];
+const DEFAULT_SCOPE_STRING = REQUIRED_SCOPES.join(',');
+const CANONICAL_SCOPE_SIGNATURE = [...REQUIRED_SCOPES].sort().join(',');
 const STATE_COOKIE = 'shopify_oauth_state';
 
-function mergeScopes(scopes: string): string {
-  const items = scopes
+function parseScopes(scopes: string): string[] {
+  return scopes
     .split(',')
     .map((scope) => scope.trim())
     .filter(Boolean);
-  const set = new Set(items);
-  REQUIRED_SCOPES.forEach((scope) => set.add(scope));
-  return Array.from(set).join(',');
+}
+
+function buildScopeString(rawScopes: string): string {
+  const orderedScopes: string[] = [];
+  const seen = new Set<string>();
+
+  parseScopes(rawScopes).forEach((scope) => {
+    if (!seen.has(scope)) {
+      orderedScopes.push(scope);
+      seen.add(scope);
+    }
+  });
+
+  REQUIRED_SCOPES.forEach((required) => {
+    if (!seen.has(required)) {
+      orderedScopes.push(required);
+      seen.add(required);
+    }
+  });
+
+  return orderedScopes.join(',');
+}
+
+function warnIfScopesChanged(rawScopes: string) {
+  const normalized = parseScopes(rawScopes);
+  const signature = Array.from(new Set(normalized))
+    .sort()
+    .join(',');
+  if (signature !== CANONICAL_SCOPE_SIGNATURE) {
+    console.warn('You changed Shopify scopes — uninstall and reinstall the app.');
+  }
 }
 
 function normalizeShopDomain(raw: string | null): string {
@@ -54,8 +90,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   }
 
   const apiKey = process.env.SHOPIFY_API_KEY;
-  const redirectUri = process.env.SHOPIFY_REDIRECT_URI;
-  const scopes = mergeScopes(process.env.SHOPIFY_SCOPES || DEFAULT_SCOPES);
+  const redirectUri = resolveShopifyRedirectUri();
+  const rawScopeString = process.env.SHOPIFY_SCOPES || DEFAULT_SCOPE_STRING;
+  warnIfScopesChanged(rawScopeString);
+  const scopes = buildScopeString(rawScopeString);
 
   if (!apiKey || !redirectUri) {
     return res.status(500).json({ error: 'Shopify OAuth is not configured' });

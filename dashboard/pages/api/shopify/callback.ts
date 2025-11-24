@@ -2,10 +2,10 @@ import type { NextApiRequest, NextApiResponse } from 'next';
 import crypto from 'crypto';
 import axios from 'axios';
 import { adminDatabase } from '../../../lib/firebaseAdmin';
+import { resolveAppUrl, resolveShopifyRedirectUri } from '../../../lib/shopifyConfig';
 
 const STATE_COOKIE = 'shopify_oauth_state';
 const WEBHOOK_TOPICS = ['checkouts/create', 'checkouts/update', 'orders/create'];
-const REQUIRED_SCOPES = ['read_orders'];
 
 function sanitizeKey(value: string) {
   return value.replace(/[.#$/\[\]]/g, '_');
@@ -108,10 +108,18 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   if (!normalizedShop.endsWith('.myshopify.com')) {
     return res.status(400).json({ error: 'Invalid shop domain' });
   }
+  const stateShop = normalizeShopDomain(stateData?.shop || null);
+  if (stateShop && stateShop !== normalizedShop) {
+    return res.status(400).json({ error: 'Shop mismatch' });
+  }
 
   const secret = process.env.SHOPIFY_API_SECRET;
   if (!secret) {
     return res.status(500).json({ error: 'Shopify secret not configured' });
+  }
+  const redirectUri = resolveShopifyRedirectUri();
+  if (!redirectUri) {
+    return res.status(500).json({ error: 'Shopify redirect URI not configured' });
   }
 
   const message = buildMessageFromQuery(req.query);
@@ -132,17 +140,19 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return res.status(500).json({ error: 'Shopify key not configured' });
   }
 
-  let tokenResponse: { access_token: string; scope: string };
+  let tokenResponse: { access_token: string; scope?: string };
   try {
-    const { data } = await axios.post<{ access_token: string; scope: string }>(
+    const { data } = await axios.post<{ access_token: string; scope?: string }>(
       `https://${normalizedShop}/admin/oauth/access_token`,
       {
         client_id: apiKey,
         client_secret: secret,
         code,
+        redirect_uri: redirectUri,
       }
     );
     tokenResponse = data;
+    console.log('[Shopify Callback] Granted scopes for', normalizedShop, data.scope);
   } catch (error) {
     console.error('Shopify token exchange failed', error);
     return res.status(500).json({ error: 'Failed to exchange token' });
@@ -154,32 +164,35 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     .split(',')
     .map((scope) => scope.trim())
     .filter(Boolean);
-  const missingScopes = REQUIRED_SCOPES.filter((scope) => !grantedScopes.includes(scope));
-
-  if (missingScopes.length) {
-    console.error('[Shopify Callback] Missing required scopes', missingScopes);
-    return res.status(400).json({
-      error: `Shopify app is missing required permissions: ${missingScopes.join(
-        ', '
-      )}. Please uninstall and reinstall to grant them.`,
-    });
-  }
+  const grantedScopeString = grantedScopes.join(',');
+  const connectedAt = Date.now();
 
   try {
     await adminDatabase.ref(`shops/${shopKey}`).set({
       shop: normalizedShop,
       accessToken: encryptedToken,
-      scopes: grantedScopes.join(','),
-      installedAt: Date.now(),
+      scopes: grantedScopeString,
+      installedAt: connectedAt,
       lastSynced: null,
       userId: uid,
     });
 
-    await adminDatabase.ref(`users/${uid}/integrations/shopify`).set({
+    const integrationRecord = {
       connected: true,
       shopDomain: normalizedShop,
-      scopes: grantedScopes.join(','),
-      connectedAt: Date.now(),
+      scopes: grantedScopeString,
+      connectedAt,
+      lastSynced: null,
+      accessToken: encryptedToken,
+    };
+
+    await adminDatabase.ref(`users/${uid}/integrations/shopify`).set(integrationRecord);
+    await adminDatabase.ref(`users/${uid}/shopify`).set({
+      accessToken: encryptedToken,
+      shopDomain: normalizedShop,
+      scopes: grantedScopeString,
+      connected: true,
+      connectedAt,
       lastSynced: null,
     });
   } catch (error) {
@@ -187,7 +200,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return res.status(500).json({ error: 'Failed to save shop' });
   }
 
-  const appUrl = process.env.APP_URL;
+  const appUrl = resolveAppUrl();
   if (!appUrl) {
     return res.status(500).json({ error: 'App URL not configured' });
   }
@@ -217,7 +230,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     })
   );
 
-  res.writeHead(302, { Location: '/dashboard/integrations?connected=shopify' });
+  res.writeHead(302, { Location: '/dashboard?connected=shopify' });
   res.end();
 }
 
