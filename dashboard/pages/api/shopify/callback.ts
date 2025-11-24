@@ -1,15 +1,25 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import crypto from 'crypto';
 import axios from 'axios';
-import { getFirestore } from 'firebase-admin/firestore';
-import { getApps, initializeApp } from 'firebase-admin/app';
-
-if (!getApps().length) {
-  initializeApp();
-}
+import { adminDatabase } from '../../../lib/firebaseAdmin';
 
 const STATE_COOKIE = 'shopify_oauth_state';
 const WEBHOOK_TOPICS = ['checkouts/create', 'checkouts/update', 'orders/create'];
+const REQUIRED_SCOPES = ['read_orders'];
+
+function sanitizeKey(value: string) {
+  return value.replace(/[.#$/\[\]]/g, '_');
+}
+
+function normalizeShopDomain(raw: string | null): string {
+  if (!raw) return '';
+  let value = raw.trim().toLowerCase();
+  value = value.replace(/^https?:\/\//, '');
+  value = value.split('?')[0] || '';
+  value = value.split('#')[0] || '';
+  value = value.replace(/\/+$/, '');
+  return value;
+}
 
 function parseCookie(cookieHeader: string | undefined, name: string): string | null {
   if (!cookieHeader) return null;
@@ -80,7 +90,21 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return res.status(400).json({ error: 'Invalid state' });
   }
 
-  const normalizedShop = shop.toLowerCase().trim();
+  const stateRef = adminDatabase.ref(`shopify_states/${state}`);
+  const stateSnapshot = await stateRef.get();
+  await stateRef.remove().catch(() => {});
+
+  if (!stateSnapshot.exists()) {
+    return res.status(400).json({ error: 'State expired or invalid' });
+  }
+
+  const stateData = stateSnapshot.val() as { uid?: string; shop?: string } | null;
+  const uid = stateData?.uid;
+  if (!uid) {
+    return res.status(400).json({ error: 'Missing session user' });
+  }
+
+  const normalizedShop = normalizeShopDomain(shop);
   if (!normalizedShop.endsWith('.myshopify.com')) {
     return res.status(400).json({ error: 'Invalid shop domain' });
   }
@@ -125,15 +149,38 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   }
 
   const encryptedToken = encrypt(tokenResponse.access_token);
-  const db = getFirestore();
+  const shopKey = sanitizeKey(normalizedShop);
+  const grantedScopes = (tokenResponse.scope || '')
+    .split(',')
+    .map((scope) => scope.trim())
+    .filter(Boolean);
+  const missingScopes = REQUIRED_SCOPES.filter((scope) => !grantedScopes.includes(scope));
+
+  if (missingScopes.length) {
+    console.error('[Shopify Callback] Missing required scopes', missingScopes);
+    return res.status(400).json({
+      error: `Shopify app is missing required permissions: ${missingScopes.join(
+        ', '
+      )}. Please uninstall and reinstall to grant them.`,
+    });
+  }
+
   try {
-    await db.collection('shops').doc(normalizedShop).set({
+    await adminDatabase.ref(`shops/${shopKey}`).set({
       shop: normalizedShop,
       accessToken: encryptedToken,
-      scopes: tokenResponse.scope,
+      scopes: grantedScopes.join(','),
       installedAt: Date.now(),
       lastSynced: null,
-      userId: 'TEMP_USER_ID',
+      userId: uid,
+    });
+
+    await adminDatabase.ref(`users/${uid}/integrations/shopify`).set({
+      connected: true,
+      shopDomain: normalizedShop,
+      scopes: grantedScopes.join(','),
+      connectedAt: Date.now(),
+      lastSynced: null,
     });
   } catch (error) {
     console.error('Failed to save shop record', error);

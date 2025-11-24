@@ -1,11 +1,8 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 import crypto from 'crypto';
-import { getApps, initializeApp } from 'firebase-admin/app';
-import { getFirestore } from 'firebase-admin/firestore';
+import { adminDatabase } from '../../../lib/firebaseAdmin';
 
-if (!getApps().length) {
-  initializeApp();
-}
+const sanitizeKey = (value: string) => value.replace(/[.#$/\[\]]/g, '_');
 
 function getHeaderValue(header: string | string[] | undefined): string | null {
   if (!header) return null;
@@ -23,15 +20,11 @@ function readRawBody(req: NextApiRequest): Promise<Buffer> {
   });
 }
 
-async function handleCheckoutEvent(
-  shop: string,
-  token: string,
-  payload: any,
-  topic: string
-): Promise<void> {
+async function handleCheckoutEvent(shop: string, token: string, payload: any): Promise<void> {
   if (!token) return;
-  const db = getFirestore();
-  const docRef = db.collection('shops').doc(shop).collection('checkouts').doc(token);
+  const shopKey = sanitizeKey(shop);
+  const tokenKey = sanitizeKey(token);
+  const checkoutRef = adminDatabase.ref(`shops/${shopKey}/checkouts/${tokenKey}`);
 
   const record = {
     shop,
@@ -47,26 +40,20 @@ async function handleCheckoutEvent(
     secondSentAt: null,
   };
 
-  if (topic === 'checkouts/update') {
-    await docRef.set(record, { merge: true });
-  } else {
-    await docRef.set(record);
-  }
+  await checkoutRef.set(record);
 }
 
 async function handleOrderEvent(shop: string, payload: any): Promise<void> {
   const token = payload?.checkout?.token;
   if (!token) return;
-  const db = getFirestore();
-  const docRef = db.collection('shops').doc(shop).collection('checkouts').doc(token);
-  await docRef.set(
-    {
-      status: 'completed',
-      completedAt: Date.now(),
-      updatedAt: Date.now(),
-    },
-    { merge: true }
-  );
+  const shopKey = sanitizeKey(shop);
+  const tokenKey = sanitizeKey(token);
+  const checkoutRef = adminDatabase.ref(`shops/${shopKey}/checkouts/${tokenKey}`);
+  await checkoutRef.update({
+    status: 'completed',
+    completedAt: Date.now(),
+    updatedAt: Date.now(),
+  });
 }
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
@@ -124,7 +111,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   try {
     if (topic === 'checkouts/create' || topic === 'checkouts/update') {
-      await handleCheckoutEvent(shop, payload?.token, payload, topic);
+      await handleCheckoutEvent(shop, payload?.token, payload);
     } else if (topic === 'orders/create') {
       await handleOrderEvent(shop, payload);
     }

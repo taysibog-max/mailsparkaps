@@ -1,6 +1,7 @@
 import { FormEvent, useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import { LoadingSpinner } from '../LoadingSkeleton';
+import { getFirebaseApp } from '../../lib/firebaseClient';
 
 export interface ShopifyStatus {
   connected: boolean;
@@ -50,14 +51,41 @@ export function ShopifyIntegrationCard() {
   const [storeDomain, setStoreDomain] = useState('');
   const [status, setStatus] = useState<ShopifyStatus>(fallbackStatus);
   const [loading, setLoading] = useState(true);
+  const [connecting, setConnecting] = useState(false);
   const [error, setError] = useState('');
 
   useEffect(() => {
     const controller = new AbortController();
+    let unsubscribe: (() => void) | null = null;
 
     async function fetchStatus() {
       try {
-        const response = await fetch('/api/user/integrations', { signal: controller.signal });
+        const { auth } = getFirebaseApp();
+        const user =
+          auth.currentUser ||
+          (await new Promise<typeof auth.currentUser>((resolve) => {
+            unsubscribe = auth.onAuthStateChanged((firebaseUser) => {
+              if (unsubscribe) {
+                unsubscribe();
+                unsubscribe = null;
+              }
+              resolve(firebaseUser);
+            });
+          }));
+
+        if (!user) {
+          setLoading(false);
+          return;
+        }
+
+        const token = await user.getIdToken();
+
+        const response = await fetch('/api/user/integrations', {
+          signal: controller.signal,
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        });
         if (!response.ok) throw new Error('Failed to load integrations');
 
         const payload = await response.json().catch(() => ({}));
@@ -91,11 +119,16 @@ export function ShopifyIntegrationCard() {
     }
 
     fetchStatus();
-    return () => controller.abort();
+    return () => {
+      controller.abort();
+      if (typeof unsubscribe === 'function') {
+        unsubscribe();
+      }
+    };
   }, []);
 
   function normalizeDomain(raw: string) {
-    return raw.trim().replace(/^https?:\/\//i, '').split('/')[0];
+    return raw.trim().replace(/^https?:\/\//i, '').split('/')[0]?.toLowerCase() || '';
   }
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
@@ -108,10 +141,48 @@ export function ShopifyIntegrationCard() {
       return;
     }
 
-    const target = `/api/shopify/auth?shop=${encodeURIComponent(normalized)}`;
-    if (typeof window !== 'undefined') {
-      window.location.href = target;
-    }
+    (async () => {
+      try {
+        setConnecting(true);
+        const { auth } = getFirebaseApp();
+        const user =
+          auth.currentUser ||
+          (await new Promise<typeof auth.currentUser>((resolve) => {
+            const unsubscribe = auth.onAuthStateChanged((firebaseUser) => {
+              unsubscribe();
+              resolve(firebaseUser);
+            });
+          }));
+
+        if (!user) {
+          setError('Please log in again to connect Shopify.');
+          return;
+        }
+
+        const token = await user.getIdToken();
+        const response = await fetch('/api/shopify/start', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({ shop: normalized }),
+        });
+
+        const data = await response.json().catch(() => ({}));
+        if (!response.ok || !data?.redirectUrl) {
+          throw new Error(data?.error || 'Failed to initiate Shopify authorization');
+        }
+
+        if (typeof window !== 'undefined') {
+          window.location.href = data.redirectUrl;
+        }
+      } catch (err) {
+        setError((err as Error).message || 'Failed to connect store');
+      } finally {
+        setConnecting(false);
+      }
+    })();
   }
 
   return (
@@ -147,8 +218,12 @@ export function ShopifyIntegrationCard() {
           type="submit"
           className="inline-flex items-center justify-center rounded-xl px-5 py-2.5 font-medium text-white transition hover:brightness-110"
           style={{ backgroundColor: '#ff40a1' }}
+          disabled={connecting}
         >
-          Connect Store
+          {connecting && <LoadingSpinner size="sm" />}
+          <span className={connecting ? 'ml-2' : undefined}>
+            {connecting ? 'Redirecting…' : 'Connect Store'}
+          </span>
         </button>
       </form>
 

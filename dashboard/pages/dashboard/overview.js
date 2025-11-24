@@ -60,9 +60,27 @@ function Overview() {
       let storeUrl = null;
 
       try {
-        const wooStatus = await apiGet('/api/integrations/woo/status').catch(() => null);
+        const [wooStatus, integrationsStatus] = await Promise.all([
+          apiGet('/api/integrations/woo/status').catch(() => null),
+          apiGet('/api/user/integrations').catch(() => null),
+        ]);
 
-        if (wooStatus?.store) {
+        const shopifyData =
+          integrationsStatus?.shopify ??
+          integrationsStatus?.integrations?.shopify ??
+          integrationsStatus?.data?.shopify ??
+          null;
+
+        if (shopifyData?.connected) {
+          platform = 'shopify';
+          lastSync = shopifyData.lastSynced || shopifyData.connectedAt || null;
+          storeUrl =
+            shopifyData.shopDomain ||
+            shopifyData.domain ||
+            shopifyData.shop ||
+            shopifyData.shopifyDomain ||
+            null;
+        } else if (wooStatus?.store) {
           platform = 'woocommerce';
           lastSync = wooStatus.store.lastSynced || wooStatus.store.connectedAt;
           storeUrl = wooStatus.store.shopUrl || wooStatus.store.storeUrl;

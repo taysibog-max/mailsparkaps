@@ -13,6 +13,7 @@ import {
   getCachedStore,
   shouldRefreshCache 
 } from '../lib/connectionCache';
+import { ref as dbRef, get as getDbValue } from 'firebase/database';
 
 const StoreCtx = createContext({
   store: null,
@@ -25,7 +26,7 @@ const StoreCtx = createContext({
 });
 
 export function StoreProvider({ children }) {
-  const { auth, firestore } = getFirebaseApp();
+  const { auth, firestore, db } = getFirebaseApp();
   const [store, setStore] = useState(null);
   const [loading, setLoading] = useState(true);
   const [connectionError, setConnectionError] = useState(null);
@@ -140,18 +141,29 @@ export function StoreProvider({ children }) {
       timeoutPromise
     ]).catch(() => ({ platform: null, connected: false, data: null }));
     
+    const shopifyRef = dbRef(db, `users/${user.uid}/integrations/shopify`);
+    const shopifyPromise = getDbValue(shopifyRef).catch(() => null);
+    
     // Sve API pozive izvršavamo paralelno
-    const [_, connectionResult, wooStatus] = await Promise.all([
+    const [_, connectionResult, wooStatus, shopifySnap, integrationsFromApi] = await Promise.all([
       apiGet('/api/user/ensure').catch(() => null),
       connectionPromise,
       apiGet(`/api/integrations/woo/status?ts=${Date.now()}`).catch(() => null),
+      shopifyPromise,
+      apiGet('/api/user/integrations').catch(() => null),
     ]);
     
     let storeData = null;
+    const shopifyData =
+      (shopifySnap && shopifySnap.exists() ? shopifySnap.val() : null) ||
+      integrationsFromApi?.shopify ||
+      null;
     
     // Prioritet: checkStoreConnection > API statusi
     if (connectionResult.connected) {
       storeData = { platform: connectionResult.platform, ...(connectionResult.data||{}) };
+    } else if (shopifyData?.connected) {
+      storeData = { platform: 'shopify', ...shopifyData };
     } else {
       // Fallback na API statuse
       if (wooStatus?.store) {
@@ -165,6 +177,10 @@ export function StoreProvider({ children }) {
     }
     
     if (storeData) {
+      if (storeData.accessToken) {
+        const { accessToken, ...safeData } = storeData;
+        storeData = safeData;
+      }
       setStore(storeData);
       setConnectionCache(storeData); // Sačuvaj u localStorage
       
@@ -196,7 +212,7 @@ export function StoreProvider({ children }) {
     // Sačuvaj i u stari keš za kompatibilnost
     const cacheKey = getCacheKey(u.uid, 'store_connection');
     saveToCache(cacheKey, data);
-  }, [auth, firestore]);
+  }, [auth, firestore, db]);
 
   const disconnectStore = useCallback(async () => {
     const u = auth.currentUser;
