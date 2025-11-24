@@ -98,10 +98,14 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return res.status(400).json({ error: 'State expired or invalid' });
   }
 
-  const stateData = stateSnapshot.val() as { uid?: string; shop?: string } | null;
+  const stateData = stateSnapshot.val() as { uid?: string; shop?: string; scopes?: string } | null;
   const uid = stateData?.uid;
   if (!uid) {
     return res.status(400).json({ error: 'Missing session user' });
+  }
+  const stateScopes = typeof stateData?.scopes === 'string' ? stateData.scopes : '';
+  if (!stateScopes) {
+    return res.status(400).json({ error: 'Missing requested scopes' });
   }
 
   const normalizedShop = normalizeShopDomain(shop);
@@ -140,9 +144,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return res.status(500).json({ error: 'Shopify key not configured' });
   }
 
-  let tokenResponse: { access_token: string; scope?: string };
+  let tokenResponse: { access_token: string };
   try {
-    const { data } = await axios.post<{ access_token: string; scope?: string }>(
+    const { data } = await axios.post<{ access_token: string }>(
       `https://${normalizedShop}/admin/oauth/access_token`,
       {
         client_id: apiKey,
@@ -152,7 +156,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       }
     );
     tokenResponse = data;
-    console.log('[Shopify Callback] Granted scopes for', normalizedShop, data.scope);
   } catch (error) {
     console.error('Shopify token exchange failed', error);
     return res.status(500).json({ error: 'Failed to exchange token' });
@@ -160,7 +163,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   const encryptedToken = encrypt(tokenResponse.access_token);
   const shopKey = sanitizeKey(normalizedShop);
-  const grantedScopes = (tokenResponse.scope || '')
+  const grantedScopes = stateScopes
     .split(',')
     .map((scope) => scope.trim())
     .filter(Boolean);

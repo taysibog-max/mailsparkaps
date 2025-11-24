@@ -105,6 +105,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     await adminDatabase.ref(`shopify_states/${state}`).set({
       uid,
       shop: normalizedShop,
+      scopes,
       createdAt: Date.now(),
     });
   } catch (error) {
