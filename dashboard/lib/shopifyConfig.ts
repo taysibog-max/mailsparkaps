@@ -5,7 +5,7 @@ function normalizeBaseUrl(raw?: string | null): string {
   return raw.trim().replace(/\/+$/, '');
 }
 
-export function resolveAppUrl(): string {
+function resolveAppUrl(): string {
   const base =
     normalizeBaseUrl(process.env.APP_URL) ||
     normalizeBaseUrl(process.env.NEXT_PUBLIC_APP_URL) ||
@@ -13,12 +13,22 @@ export function resolveAppUrl(): string {
   return normalizeBaseUrl(base);
 }
 
-export function resolveShopifyRedirectUri(): string {
-  const envRedirect = process.env.SHOPIFY_REDIRECT_URI;
-  if (envRedirect && envRedirect.trim()) {
-    return envRedirect.trim();
-  }
-  const baseUrl = resolveAppUrl();
-  return baseUrl ? `${baseUrl}/api/shopify/callback` : '';
+function resolveShopifyRedirectUri(): string {
+  return (process.env.SHOPIFY_REDIRECT_URI || '').trim();
 }
+
+export function getShopifyConfig() {
+  const appUrl = resolveAppUrl();
+  const redirectUri = resolveShopifyRedirectUri();
+
+  return {
+    appUrl,
+    apiKey: process.env.SHOPIFY_API_KEY || '',
+    apiSecret: process.env.SHOPIFY_API_SECRET || '',
+    scopes: process.env.SHOPIFY_SCOPES || '',
+    redirectUri,
+  };
+}
+
+export { resolveAppUrl, resolveShopifyRedirectUri };
 

@@ -2,7 +2,7 @@ import type { NextApiRequest, NextApiResponse } from 'next';
 import crypto from 'crypto';
 import axios from 'axios';
 import { adminDatabase } from '../../../lib/firebaseAdmin';
-import { resolveAppUrl, resolveShopifyRedirectUri } from '../../../lib/shopifyConfig';
+import { getShopifyConfig } from '../../../lib/shopifyConfig';
 
 const STATE_COOKIE = 'shopify_oauth_state';
 const WEBHOOK_TOPICS = ['checkouts/create', 'checkouts/update', 'orders/create'];
@@ -70,6 +70,26 @@ function encrypt(text: string): string {
   return `${iv.toString('hex')}:${encrypted.toString('hex')}`;
 }
 
+async function registerWebhook(shop: string, accessToken: string, topic: string, appUrl: string) {
+  const address = `${appUrl.replace(/\/+$/, '')}/api/shopify/webhooks`;
+  await axios.post(
+    `https://${shop}/admin/api/2023-10/webhooks.json`,
+    {
+      webhook: {
+        topic,
+        address,
+        format: 'json',
+      },
+    },
+    {
+      headers: {
+        'X-Shopify-Access-Token': accessToken,
+        'Content-Type': 'application/json',
+      },
+    }
+  );
+}
+
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== 'GET') {
     return res.status(405).json({ error: 'Method not allowed' });
@@ -117,11 +137,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return res.status(400).json({ error: 'Shop mismatch' });
   }
 
-  const secret = process.env.SHOPIFY_API_SECRET;
+  const { apiSecret: secret, apiKey, redirectUri, appUrl } = getShopifyConfig();
   if (!secret) {
     return res.status(500).json({ error: 'Shopify secret not configured' });
   }
-  const redirectUri = resolveShopifyRedirectUri();
   if (!redirectUri) {
     return res.status(500).json({ error: 'Shopify redirect URI not configured' });
   }
@@ -137,11 +156,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   if (provided.length !== generated.length || !crypto.timingSafeEqual(generated, provided)) {
     return res.status(400).json({ error: 'Invalid HMAC' });
-  }
-
-  const apiKey = process.env.SHOPIFY_API_KEY;
-  if (!apiKey) {
-    return res.status(500).json({ error: 'Shopify key not configured' });
   }
 
   let tokenResponse: { access_token: string };
@@ -203,35 +217,14 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return res.status(500).json({ error: 'Failed to save shop' });
   }
 
-  const appUrl = resolveAppUrl();
-  if (!appUrl) {
-    return res.status(500).json({ error: 'App URL not configured' });
+  for (const topic of WEBHOOK_TOPICS) {
+    try {
+      await registerWebhook(normalizedShop, tokenResponse.access_token, topic, appUrl);
+    } catch (error) {
+      const message = (error as any)?.response?.data || (error as Error).message;
+      console.error(`[Shopify Callback] Failed to register webhook ${topic} for ${normalizedShop}`, message);
+    }
   }
-
-  await Promise.all(
-    WEBHOOK_TOPICS.map(async (topic) => {
-      try {
-        await axios.post(
-          `https://${normalizedShop}/admin/api/2023-10/webhooks.json`,
-          {
-            webhook: {
-              topic,
-              address: `${appUrl}/api/shopify/webhooks`,
-              format: 'json',
-            },
-          },
-          {
-            headers: {
-              'X-Shopify-Access-Token': tokenResponse.access_token,
-              'Content-Type': 'application/json',
-            },
-          }
-        );
-      } catch (error) {
-        console.error(`Failed to register webhook for ${topic}`, error);
-      }
-    })
-  );
 
   res.writeHead(302, { Location: '/dashboard?connected=shopify' });
   res.end();
