@@ -37,7 +37,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     return res.status(200).json({
       integrations,
-      shopify: integrations?.shopify ?? null,
       woocommerce: integrations?.woocommerce ?? null,
     });
   } catch (error) {

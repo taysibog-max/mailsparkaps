@@ -13,8 +13,6 @@ import {
   getCachedStore,
   shouldRefreshCache 
 } from '../lib/connectionCache';
-import { ref as dbRef, get as getDbValue } from 'firebase/database';
-
 const StoreCtx = createContext({
   store: null,
   isConnected: false,
@@ -141,29 +139,18 @@ export function StoreProvider({ children }) {
       timeoutPromise
     ]).catch(() => ({ platform: null, connected: false, data: null }));
     
-    const shopifyRef = dbRef(db, `users/${user.uid}/integrations/shopify`);
-    const shopifyPromise = getDbValue(shopifyRef).catch(() => null);
-    
     // Sve API pozive izvršavamo paralelno
-    const [_, connectionResult, wooStatus, shopifySnap, integrationsFromApi] = await Promise.all([
+    const [_, connectionResult, wooStatus] = await Promise.all([
       apiGet('/api/user/ensure').catch(() => null),
       connectionPromise,
       apiGet(`/api/integrations/woo/status?ts=${Date.now()}`).catch(() => null),
-      shopifyPromise,
-      apiGet('/api/user/integrations').catch(() => null),
     ]);
     
     let storeData = null;
-    const shopifyData =
-      (shopifySnap && shopifySnap.exists() ? shopifySnap.val() : null) ||
-      integrationsFromApi?.shopify ||
-      null;
     
     // Prioritet: checkStoreConnection > API statusi
     if (connectionResult.connected) {
       storeData = { platform: connectionResult.platform, ...(connectionResult.data||{}) };
-    } else if (shopifyData?.connected) {
-      storeData = { platform: 'shopify', ...shopifyData };
     } else {
       // Fallback na API statuse
       if (wooStatus?.store) {

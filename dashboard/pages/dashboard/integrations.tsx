@@ -14,15 +14,13 @@ import { motion } from 'framer-motion';
 import Modal from '../../components/Modal';
 import { saveContactsToIndexedDB } from '../../lib/indexedDbAdapter';
 import { saveContactsToLocalStorage } from '../../lib/contactsCache';
-import ShopifyIntegrationCard from '../../components/integrations/ShopifyIntegrationCard';
-
 export default function IntegrationsPage(){
   return (
     <RequireAuth>
       <AppShell>
         <div className="grid gap-6 md:grid-cols-1">
           <WooCard />
-          <ShopifyIntegrationCard />
+          <PixelPlaceholderCard />
         </div>
       </AppShell>
     </RequireAuth>
@@ -384,6 +382,43 @@ function WooCard(){
           </div>
         </div>
       </Modal>
+    </motion.div>
+  );
+}
+
+function PixelPlaceholderCard(){
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      className="rounded-2xl border border-white/10 bg-zinc-950/60 shadow-[0_10px_30px_rgba(0,0,0,0.25)] p-6"
+    >
+      <div className="flex items-center justify-between gap-4 mb-4">
+        <div>
+          <div className="text-lg font-semibold text-white">Coming soon: MailSpark Pixel</div>
+          <p className="text-sm text-neutral-400">
+            First-party tracking installs here next. Stay tuned!
+          </p>
+        </div>
+        <div className="flex items-center gap-2 text-xs uppercase tracking-wide text-amber-300">
+          <span className="inline-flex h-2.5 w-2.5 rounded-full bg-amber-400 animate-ping opacity-75" />
+          <span className="inline-flex h-2 w-2 rounded-full bg-amber-400" />
+          Beta prep
+        </div>
+      </div>
+      <div className="space-y-3 text-sm text-neutral-300">
+        <p>
+          We&apos;re bringing the MailSpark Pixel to capture browse events, on-site funnels, and
+          server-to-server conversions.
+        </p>
+        <p className="text-neutral-400">
+          Developers will drop a tiny script into <code>public/pixel.js</code>, then activate this
+          API route once specs are finalized.
+        </p>
+        <div className="rounded-xl border border-amber-500/30 bg-amber-500/5 p-4 text-xs text-amber-200">
+          Integration docs and install wizard will land in this card when the pixel ships.
+        </div>
+      </div>
     </motion.div>
   );
 }

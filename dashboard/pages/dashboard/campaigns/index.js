@@ -119,19 +119,9 @@ function CampaignsContent() {
     (async () => {
       try {
         const ts = Date.now();
-        const [woo, integrations] = await Promise.all([
-          apiGet(`/api/integrations/woo/status?ts=${ts}`).catch(() => ({})),
-          apiGet('/api/user/integrations').catch(() => ({})),
-        ]);
+        const woo = await apiGet(`/api/integrations/woo/status?ts=${ts}`).catch(() => ({}));
         if (cancelled) return;
-        const shopifyData =
-          integrations?.shopify ??
-          integrations?.integrations?.shopify ??
-          integrations?.data?.shopify ??
-          null;
-        if (shopifyData?.connected) {
-          setPlatform('shopify');
-        } else if (woo?.store) {
+        if (woo?.store) {
           setPlatform('woocommerce');
         } else {
           setPlatform(null);
