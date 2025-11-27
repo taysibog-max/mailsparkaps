@@ -14,11 +14,13 @@ import { motion } from 'framer-motion';
 import Modal from '../../components/Modal';
 import { saveContactsToIndexedDB } from '../../lib/indexedDbAdapter';
 import { saveContactsToLocalStorage } from '../../lib/contactsCache';
+import ShopifyManualConnect from '../../components/ShopifyManualConnect';
 export default function IntegrationsPage(){
   return (
     <RequireAuth>
       <AppShell>
         <div className="grid gap-6 md:grid-cols-1">
+          <ShopifyManualConnect />
           <WooCard />
           <PixelPlaceholderCard />
         </div>

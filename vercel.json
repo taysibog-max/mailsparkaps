@@ -2,8 +2,12 @@
   "version": 2,
   "crons": [
     {
-      "path": "/api/cron/checkouts",
-      "schedule": "*/1 * * * *"
+      "path": "/api/cron/evaluate",
+      "schedule": "*/5 * * * *"
+    },
+    {
+      "path": "/api/cron/send-abandoned",
+      "schedule": "*/5 * * * *"
     }
   ]
 }
