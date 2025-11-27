@@ -20,13 +20,56 @@ export default function IntegrationsPage(){
     <RequireAuth>
       <AppShell>
         <div className="grid gap-6 md:grid-cols-1">
-          <ShopifyManualConnect />
+          <ShopifyCard />
           <WooCard />
           <PixelPlaceholderCard />
         </div>
       </AppShell>
     </RequireAuth>
   );
+}
+
+function ShopifyCard(){
+  const { integrations } = useStore();
+  const shopify = integrations?.shopify;
+  const connected = shopify?.connected;
+  if (connected) {
+    const domain = shopify?.shopDomain || shopify?.domain || '';
+    return (
+      <motion.div
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="rounded-2xl border border-white/10 bg-zinc-950/60 shadow-[0_10px_30px_rgba(0,0,0,0.25)] p-6"
+      >
+        <div className="flex items-center justify-between">
+          <div>
+            <p className="text-xs uppercase tracking-widest text-fuchsia-300/80">Shopify Integration</p>
+            <h2 className="text-xl font-semibold text-white">Manual Connect</h2>
+          </div>
+          <span className="rounded-full border border-emerald-400/40 bg-emerald-500/10 px-3 py-1 text-xs font-semibold text-emerald-200">
+            Connected
+          </span>
+        </div>
+        <div className="mt-4 flex items-start gap-3">
+          <PingDot color="green" />
+          <div>
+            <p className="font-semibold text-white">Connected to {domain || 'Shopify store'}</p>
+            <p className="text-sm text-neutral-400">Admin API token on file</p>
+          </div>
+        </div>
+        <div className="mt-6 flex items-center gap-3">
+          <button
+            type="button"
+            disabled
+            className="rounded-lg border border-white/10 px-4 py-2 text-sm text-neutral-400 opacity-70 cursor-not-allowed"
+          >
+            Disconnect Shopify
+          </button>
+        </div>
+      </motion.div>
+    );
+  }
+  return <ShopifyManualConnect />;
 }
 
 function PingDot({ color='green' }){

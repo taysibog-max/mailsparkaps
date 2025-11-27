@@ -3,6 +3,7 @@ import { motion } from 'framer-motion';
 import { getFirebaseApp } from '../lib/firebaseClient';
 import { LoadingSpinner } from './LoadingSkeleton';
 import HowToCreateShopifyToken from './HowToCreateShopifyToken';
+import { useStore } from '../context/StoreContext';
 
 interface ApiResponse {
   ok: boolean;
@@ -11,6 +12,7 @@ interface ApiResponse {
 }
 
 export default function ShopifyManualConnect() {
+  const { refreshIntegrations } = useStore();
   const [shopDomain, setShopDomain] = useState('');
   const [token, setToken] = useState('');
   const [loading, setLoading] = useState(false);
@@ -75,6 +77,7 @@ export default function ShopifyManualConnect() {
       } else {
         setSuccess(`Connected to ${data.shopDomain}.`);
         setToken('');
+        await refreshIntegrations?.();
       }
     } catch (_err) {
       setError('Network error while connecting Shopify.');

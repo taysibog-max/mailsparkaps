@@ -2,6 +2,7 @@ import { createContext, useContext, useEffect, useMemo, useState, useCallback } 
 import { getFirebaseApp } from '../lib/firebaseClient';
 import { apiGet } from '../lib/apiClient';
 import { doc, getDoc, setDoc, deleteDoc } from 'firebase/firestore';
+import { ref as dbRef, get as dbGet } from 'firebase/database';
 import { checkStoreConnection, saveConnection } from '../firebase/integrations';
 import { onAuthStateChanged } from 'firebase/auth';
 import { loadFromCache, saveToCache, getCacheKey, clearCache } from '../lib/cacheUtils';
@@ -15,17 +16,20 @@ import {
 } from '../lib/connectionCache';
 const StoreCtx = createContext({
   store: null,
+  integrations: {},
   isConnected: false,
   loading: true,
   connectionError: null,
   connectStore: async (_store) => {},
   disconnectStore: async () => {},
   refreshConnection: async () => {},
+  refreshIntegrations: async () => {},
 });
 
 export function StoreProvider({ children }) {
   const { auth, firestore, db } = getFirebaseApp();
   const [store, setStore] = useState(null);
+  const [integrationsState, setIntegrationsState] = useState({});
   const [loading, setLoading] = useState(true);
   const [connectionError, setConnectionError] = useState(null);
 
@@ -59,9 +63,12 @@ export function StoreProvider({ children }) {
         }
         
         setStore(null); 
+        setIntegrationsState({});
         setLoading(false); 
         return; 
       }
+
+      loadIntegrationsFromDb(u).catch(() => {});
 
       // 1) PRVO: Proveri localStorage cache (instant load)
       const cachedConnection = getConnectionCache();
@@ -182,7 +189,29 @@ export function StoreProvider({ children }) {
       // nema mock fallback-a – realno stanje: bez konekcije
       setStore(null);
     }
+
+    await loadIntegrationsFromDb(user).catch(() => {});
   };
+
+  const loadIntegrationsFromDb = useCallback(
+    async (user) => {
+      if (!user || !db) {
+        setIntegrationsState({});
+        return {};
+      }
+      try {
+        const snap = await dbGet(dbRef(db, `users/${user.uid}/integrations`));
+        const val = snap.exists() ? snap.val() || {} : {};
+        setIntegrationsState(val);
+        return val;
+      } catch (err) {
+        console.error('Failed to load integrations:', err);
+        setIntegrationsState({});
+        return {};
+      }
+    },
+    [db],
+  );
 
   const connectStore = useCallback(async (storeData) => {
     const u = auth.currentUser;
@@ -233,15 +262,23 @@ export function StoreProvider({ children }) {
     }
   }, [auth]);
 
+  const refreshIntegrations = useCallback(async () => {
+    const u = auth.currentUser;
+    if (!u) return;
+    await loadIntegrationsFromDb(u);
+  }, [auth, loadIntegrationsFromDb]);
+
   const value = useMemo(() => ({
     store,
+    integrations: integrationsState,
     isConnected: !!store,
     loading,
     connectionError,
     connectStore,
     disconnectStore,
     refreshConnection,
-  }), [store, loading, connectionError, connectStore, disconnectStore, refreshConnection]);
+    refreshIntegrations,
+  }), [store, integrationsState, loading, connectionError, connectStore, disconnectStore, refreshConnection, refreshIntegrations]);
 
   return (
     <StoreCtx.Provider value={value}>
